@@ -24,6 +24,7 @@
 ## Besturing
 - Toetsenbord: pijltjes of W/A/S/D. Touch: vegen op het bord (minimaal 24px).
 - Hint toont alleen wat bij het apparaat past (coarse pointer = touch).
+- Inklapbare **❓ Hoe speel je?** boven het bord met de spelregels en een tip. Houd deze tekst bij als regels veranderen.
 
 ## Richtlijnen bij aanpassen
 - Spellogica alleen in de engine; de pagina rendert en JS levert alleen input.
@@ -31,4 +32,5 @@
 - Na wijzigingen: build, dit document + changelog bijwerken, commit en push.
 
 ## Changelog
-- **Eerste versie:** 2048 als nieuwe RCL naast Pong, solo, swipe/toetsen, animaties, beste score.
+animaties, beste score.
+- **Help:** inklapbare uitleg "Hoe speel je?".

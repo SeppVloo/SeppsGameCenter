@@ -80,6 +80,7 @@ Elke plek (behalve "Jij", slot 0) heeft één van drie types; tikken wisselt in 
 Volgorde van boven naar beneden:
 1. Terug naar Gameplein, logo, spelersniveau.
 2. Statusmelding (indien aanwezig), weg te klikken met ✕.
+- Inklapbare kaart **❓ Hoe speel je?** bovenaan met doel, besturing (touch- of toetsenbordtekst), effect, power-ups en hoe je een spel instelt. Houd deze tekst bij als regels/instellingen veranderen.
 3. **Tabs:** 🎮 *Nieuw spel* | 🤝 *Meedoen* (badge met aantal beschikbare spellen).
    - *Nieuw spel:* 1v1/2v2, twee kolommen LINKS/RECHTS met plek-kaarten. "Jij"-kaart bevat het naamveld. Lokale plekken hebben een naamveld; computerplekken de niveaukeuze. Elke speler-kaart toont de besturing. Bij 🌐-plekken: keuze Wifi/Internet. Samenvatting + startknop.
    - *Meedoen:* Wifi/Internet, aantal spelers op dit apparaat (1–3) met namen, lijst met spellen ("Meedoen →"), inklapbare verbindingsinfo.
@@ -121,4 +122,5 @@ Volgorde van boven naar beneden:
 - **Besturing:** 1 speler kan toetsen (W/S, ↑/↓) en muis gebruiken; bij meerdere spelers op laptop alleen toetsenbord.
 - **Meerdere spelers per apparaat online:** meedoen met 1–3 spelers; host deelt meerdere slots toe.
 touch-apparaten tonen geen toetsenbord-hints. Dit document toegevoegd.
-- **Polish:** statusmelding (bv. "De host is gestopt") weg te klikken; effect blijft na stuiten en neemt exponentieel af; drone-show met afwisseling.
+drone-show met afwisseling.
+- **Help:** inklapbare uitleg "Hoe speel je?" in de lobby.

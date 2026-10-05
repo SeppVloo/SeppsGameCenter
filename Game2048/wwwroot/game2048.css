@@ -11,6 +11,9 @@
 .g2048-btn { background: linear-gradient(90deg, #22d3ee, #f472b6); border: none; color: #0b1026; font-weight: 700; padding: .55rem 1rem; border-radius: 10px; cursor: pointer; }
 .g2048-btn.ghost { background: rgba(255,255,255,.12); color: inherit; }
 .g2048-row { display: flex; gap: .5rem; justify-content: center; }
+.g2048-help { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 12px; padding: .6rem .9rem; }
+.g2048-help summary { cursor: pointer; font-size: .8rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted, #94a3b8); }
+.g2048-help ul { margin: .6rem 0 0; padding-left: 1.1rem; display: grid; gap: .35rem; font-size: .9rem; line-height: 1.4; }
 
 .g2048-board {
     --gap: 10px;

@@ -20,6 +20,17 @@
         <button class="g2048-btn" @onclick="NewGame">Nieuw spel</button>
     </div>
 
+    <details class="g2048-help">
+        <summary>❓ Hoe speel je?</summary>
+        <ul>
+            <li>@(_touch ? "Veeg omhoog, omlaag, naar links of rechts" : "Gebruik de pijltjes of W/A/S/D") om alle tegels die kant op te schuiven.</li>
+            <li>Twee gelijke tegels die tegen elkaar schuiven worden één tegel met de dubbele waarde (2+2=4, 4+4=8, ...).</li>
+            <li>Na elke zet verschijnt een nieuwe 2 of 4. Maak de tegel <b>2048</b> om te winnen; daarna mag je doorspelen.</li>
+            <li>Kan er niets meer schuiven, dan is het game over. Je beste score wordt bewaard.</li>
+            <li><b>Tip:</b> houd je grootste tegel in een hoek.</li>
+        </ul>
+    </details>
+
     <div class="g2048-board" @ref="_board" style="--n:@_engine.Size">
         @for (int i = 0; i < _engine.Size * _engine.Size; i++)
         {

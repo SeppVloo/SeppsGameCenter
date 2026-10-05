@@ -1,4 +1,4 @@
-﻿@page "/pong"
+@page "/pong"
 @using PongWeb.Game
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -28,6 +28,17 @@ else
 		<a class="btn icon back" href="">← Gameplein</a>
 		<h1 class="logo">PONG</h1>
 		<p class="tagline">🏅 Jouw niveau: <b>@SkillText</b></p>
+
+		<details class="card settings help">
+			<summary>❓ Hoe speel je?</summary>
+			<ul>
+				<li><b>Doel:</b> kaats de bal langs je tegenstander. Wie eerst 7 punten heeft, wint.</li>
+				<li><b>Besturen:</b> @(_touch ? "sleep met je vinger over jouw helft van het scherm." : "W/S of ↑/↓, of beweeg de muis. Met meerdere spelers op één laptop krijgt elke speler eigen toetsen (zie de hint in het spel).")</li>
+				<li><b>Effect:</b> beweeg je batje terwijl je de bal raakt; dan krijgt de bal een curve die langzaam afneemt.</li>
+				<li><b>Power-ups:</b> raak ze met de bal; het team dat het laatst kaatste krijgt het effect. Aan/uit te zetten onder ⚙ Instellingen.</li>
+			</ul>
+			<p class="muted small"><b>Instellen:</b> kies bij <i>Nieuw spel</i> 1v1 of 2v2 en per plek wie er speelt: 📱 op dit apparaat, 🤖 computer (kies niveau) of 🌐 ander apparaat. Andere apparaten gaan naar <i>Meedoen</i> en kiezen hoeveel spelers daar meedoen. Wifi werkt in hetzelfde netwerk, internet overal.</p>
+		</details>
 
 		@if (_status is not null)
 		{
