@@ -1,4 +1,4 @@
-@page "/pong"
+﻿@page "/pong"
 @using PongWeb.Game
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -235,6 +235,26 @@ else
 	private ElementReference _canvas;
 	private DotNetObjectReference<Pong>? _self;
 	private IJSObjectReference? _net, _pong;
+
+	// Guarded JS interop: a failing browser call (no localStorage, page closing, module load error)
+	// must not crash the component. Failures are logged to the console and ignored.
+	private static async Task JsVoid(IJSRuntime js, string identifier, params object?[] args)
+	{
+		try { await js.InvokeVoidAsync(identifier, args); }
+		catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"JS '{identifier}' mislukt: {ex.Message}"); }
+	}
+
+	private static async Task JsVoid(IJSObjectReference module, string identifier, params object?[] args)
+	{
+		try { await module.InvokeVoidAsync(identifier, args); }
+		catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"JS '{identifier}' mislukt: {ex.Message}"); }
+	}
+
+	private static async Task<T?> JsGet<T>(IJSRuntime js, string identifier, params object?[] args)
+	{
+		try { return await js.InvokeAsync<T>(identifier, args); }
+		catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"JS '{identifier}' mislukt: {ex.Message}"); return default; }
+	}
 	private PongEngine? _engine;
 	private string? _mode;           // "practice" | "host" | "client"
 	private bool _startCanvas;
@@ -248,7 +268,7 @@ else
 	private async Task TogglePowerUp(int i)
 	{
 		if (!_disabled.Remove(i)) _disabled.Add(i);
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongDisabledPowerUps", string.Join(",", _disabled));
+		await JsVoid(JS, "localStorage.setItem", "pongDisabledPowerUps", string.Join(",", _disabled));
 	}
 
 	private bool _keep;
@@ -257,13 +277,13 @@ else
 	private async Task ToggleCollide()
 	{
 		_collide = !_collide;
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongPaddlesCollide", _collide ? "1" : "0");
+		await JsVoid(JS, "localStorage.setItem", "pongPaddlesCollide", _collide ? "1" : "0");
 	}
 
 	private async Task ToggleKeep()
 	{
 		_keep = !_keep;
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongKeepPowerUps", _keep ? "1" : "0");
+		await JsVoid(JS, "localStorage.setItem", "pongKeepPowerUps", _keep ? "1" : "0");
 	}
 
 	private PongEngine NewEngine()
@@ -310,7 +330,7 @@ else
 	private async Task LocalNameChanged(int slot, ChangeEventArgs e)
 	{
 		_localNames[slot] = e.Value?.ToString()?.Trim();
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongLocalNames", string.Join("|", _localNames.Select(n => n ?? "")));
+		await JsVoid(JS, "localStorage.setItem", "pongLocalNames", string.Join("|", _localNames.Select(n => n ?? "")));
 	}
 
 	private List<int> LocalSlots() => Enumerable.Range(1, _teamSize * 2 - 1).Where(s => (_localMask & (1 << s)) != 0).ToList();
@@ -367,12 +387,12 @@ else
 		float step = _gamesPlayed < 5 ? 0.15f : 0.08f;
 		_skill = Math.Clamp(_skill + margin * step, 0f, 1f);
 		_gamesPlayed++;
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongSkill", $"{_skill.ToString(System.Globalization.CultureInfo.InvariantCulture)},{_gamesPlayed}");
+		await JsVoid(JS, "localStorage.setItem", "pongSkill", $"{_skill.ToString(System.Globalization.CultureInfo.InvariantCulture)},{_gamesPlayed}");
 	}
 
 	private async Task LoadSkill()
 	{
-		var v = (await JS.InvokeAsync<string?>("localStorage.getItem", "pongSkill") ?? "").Split(',');
+		var v = (await JsGet<string?>(JS, "localStorage.getItem", "pongSkill") ?? "").Split(',');
 		if (v.Length == 2 && float.TryParse(v[0], System.Globalization.CultureInfo.InvariantCulture, out var s) && int.TryParse(v[1], out var g))
 		{ _skill = Math.Clamp(s, 0f, 1f); _gamesPlayed = g; }
 	}
@@ -386,7 +406,7 @@ else
 		_online = on;
 		_hosting = false;
 		_peers = [];
-		if (_netReady) await _net!.InvokeVoidAsync("setRoomCode", on ? "world" : "");
+		if (_netReady) await JsVoid(_net!, "setRoomCode", on ? "world" : "");
 	}
 
 	private async Task SetAiLevel(int slot, int level)
@@ -426,11 +446,11 @@ else
 	}
 
 	private async Task SaveSetup() =>
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongSetup2", $"{_teamSize},{_aiMask},{_wallMin},{_wallMax},{_wallSizeMin},{_wallSizeMax},{string.Join('-', _aiLevel)},{_localMask}");
+		await JsVoid(JS, "localStorage.setItem", "pongSetup2", $"{_teamSize},{_aiMask},{_wallMin},{_wallMax},{_wallSizeMin},{_wallSizeMax},{string.Join('-', _aiLevel)},{_localMask}");
 
 	private async Task LoadSetup()
 	{
-		var v = await JS.InvokeAsync<string?>("localStorage.getItem", "pongSetup2");
+		var v = await JsGet<string?>(JS, "localStorage.getItem", "pongSetup2");
 		var raw = (v ?? "").Split(',');
 		if (raw.Length >= 7)
 			_aiLevel = raw[6].Split('-').Select(x => int.TryParse(x, out var n) ? Math.Clamp(n, 0, AiLevels.Length - 1) : 1).Concat(Enumerable.Repeat(1, 4)).Take(4).ToArray();
@@ -467,23 +487,24 @@ else
 		if (firstRender)
 		{
 			_self = DotNetObjectReference.Create(this);
-			_name = await JS.InvokeAsync<string?>("localStorage.getItem", "pongName") ?? $"Speler {Random.Shared.Next(100, 999)}";
-			var dis = await JS.InvokeAsync<string?>("localStorage.getItem", "pongDisabledPowerUps");
+			_name = await JsGet<string?>(JS, "localStorage.getItem", "pongName") ?? $"Speler {Random.Shared.Next(100, 999)}";
+			var dis = await JsGet<string?>(JS, "localStorage.getItem", "pongDisabledPowerUps");
 			if (!string.IsNullOrEmpty(dis))
 				_disabled = dis.Split(',').Select(x => int.TryParse(x, out var n) ? n : -1).Where(n => n >= 0).ToHashSet();
-			_keep = await JS.InvokeAsync<string?>("localStorage.getItem", "pongKeepPowerUps") == "1";
-			_collide = await JS.InvokeAsync<string?>("localStorage.getItem", "pongPaddlesCollide") != "0";
+			_keep = await JsGet<string?>(JS, "localStorage.getItem", "pongKeepPowerUps") == "1";
+			_collide = await JsGet<string?>(JS, "localStorage.getItem", "pongPaddlesCollide") != "0";
 			await LoadSetup();
-			_touch = await JS.InvokeAsync<bool>("eval", "matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches");
+			_touch = await JsGet<bool>(JS, "eval", "matchMedia('(pointer: coarse)').matches && !matchMedia('(any-pointer: fine)').matches");
 			await LoadJoin();
-			var ln = (await JS.InvokeAsync<string?>("localStorage.getItem", "pongLocalNames") ?? "").Split('|');
+			var ln = (await JsGet<string?>(JS, "localStorage.getItem", "pongLocalNames") ?? "").Split('|');
 			for (var i = 0; i < Math.Min(ln.Length, PongEngine.MaxSlots); i++) _localNames[i] = string.IsNullOrEmpty(ln[i]) ? null : ln[i];
 			await LoadSkill();
-			_pong = await JS.InvokeAsync<IJSObjectReference>("import", "./js/pong.js");
-			_net = await JS.InvokeAsync<IJSObjectReference>("import", "./js/net.js");
+			_pong = await JsGet<IJSObjectReference>(JS, "import", "./js/pong.js");
+			_net = await JsGet<IJSObjectReference>(JS, "import", "./js/net.js");
 			StateHasChanged();
 			try
 			{
+				if (_net is null) throw new JSException("net.js kon niet geladen worden");
 				await _net.InvokeVoidAsync("start", _self, _name);
 				_netReady = true;
 			}
@@ -499,7 +520,7 @@ else
 			_startCanvas = false;
 			var info = PowerUpRegistry.All.Select(p => new { color = p.Color, symbol = p.Symbol });
 			var localSlots = _mode == "client" ? _mySlots : new[] { 0 }.Concat(LocalSlots()).ToArray();
-			await _pong.InvokeVoidAsync("start", _canvas, _self, _mode, _side, info, localSlots);
+			await JsVoid(_pong, "start", _canvas, _self, _mode, _side, info, localSlots);
 		}
 	}
 
@@ -508,8 +529,8 @@ else
 		var name = e.Value?.ToString()?.Trim();
 		if (string.IsNullOrEmpty(name)) return;
 		_name = name;
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongName", _name);
-		if (_netReady) await _net!.InvokeVoidAsync("setName", _name);
+		await JsVoid(JS, "localStorage.setItem", "pongName", _name);
+		if (_netReady) await JsVoid(_net!, "setName", _name);
 	}
 
 	private async Task Start()
@@ -526,20 +547,20 @@ else
 		_hosting = true;
 		_lobbyPlayers = [];
 		var known = Enumerable.Range(0, PongEngine.MaxSlots).Where(s => _slotNames[s] is not null).Select(s => new SlotName(s, _slotNames[s])).ToList();
-		await _net!.InvokeVoidAsync("setHosting", true, RemoteSlots(), known);
+		await JsVoid(_net!, "setHosting", true, RemoteSlots(), known);
 	}
 
 	private async Task CancelHosting()
 	{
 		_hosting = false;
-		await _net!.InvokeVoidAsync("setHosting", false, Array.Empty<int>());
+		await JsVoid(_net!, "setHosting", false, Array.Empty<int>());
 	}
 
 	private async Task Join(string peerId)
 	{
 		_status = "Verbinden...";
 		var names = new[] { _name }.Concat(Enumerable.Range(1, _joinCount - 1).Select(i => string.IsNullOrWhiteSpace(_joinNames[i]) ? $"Speler {i + 1}" : _joinNames[i]!)).ToArray();
-		await _net!.InvokeVoidAsync("join", peerId, names);
+		await JsVoid(_net!, "join", peerId, names);
 	}
 
 	private int _joinCount = 1;
@@ -559,11 +580,11 @@ else
 	}
 
 	private async Task SaveJoin() =>
-		await JS.InvokeVoidAsync("localStorage.setItem", "pongJoin", $"{_joinCount}|{string.Join("|", _joinNames.Skip(1).Select(n => n ?? ""))}");
+		await JsVoid(JS, "localStorage.setItem", "pongJoin", $"{_joinCount}|{string.Join("|", _joinNames.Skip(1).Select(n => n ?? ""))}");
 
 	private async Task LoadJoin()
 	{
-		var v = (await JS.InvokeAsync<string?>("localStorage.getItem", "pongJoin") ?? "").Split('|');
+		var v = (await JsGet<string?>(JS, "localStorage.getItem", "pongJoin") ?? "").Split('|');
 		if (int.TryParse(v[0], out var n)) _joinCount = Math.Clamp(n, 1, 3);
 		for (var i = 1; i < Math.Min(v.Length, 3); i++) _joinNames[i] = string.IsNullOrEmpty(v[i]) ? null : v[i];
 	}
@@ -579,15 +600,15 @@ else
 
 	private async Task Leave()
 	{
-		if (_pong is not null) await _pong.InvokeVoidAsync("stop");
-		if (_mode is "host" or "client") await _net!.InvokeVoidAsync("leave");
+		if (_pong is not null) await JsVoid(_pong, "stop");
+		if (_mode is "host" or "client") await JsVoid(_net!, "leave");
 		_mode = null;
 		_engine = null;
 	}
 
 	private async Task TogglePauseClick()
 	{
-		if (_pong is not null) await _pong.InvokeVoidAsync("togglePause");
+		if (_pong is not null) await JsVoid(_pong, "togglePause");
 	}
 
 	[JSInvokable]
@@ -598,7 +619,7 @@ else
 
 	private async Task RestartGame()
 	{
-		if (_pong is not null) await _pong.InvokeVoidAsync("restart");
+		if (_pong is not null) await JsVoid(_pong, "restart");
 	}
 
 	// --- Called from JavaScript ---
@@ -660,7 +681,7 @@ else
 	[JSInvokable]
 	public async Task OnGameEnd(string reason)
 	{
-		if (_pong is not null) await _pong.InvokeVoidAsync("stop");
+		if (_pong is not null) await JsVoid(_pong, "stop");
 		_mode = null;
 		_engine = null;
 		_status = reason;
@@ -693,7 +714,7 @@ else
 	{
 		try
 		{
-			if (_pong is not null) { await _pong.InvokeVoidAsync("stop"); await _pong.DisposeAsync(); }
+			if (_pong is not null) { await JsVoid(_pong, "stop"); await _pong.DisposeAsync(); }
 			if (_net is not null) await _net.DisposeAsync();
 		}
 		catch (JSDisconnectedException) { }

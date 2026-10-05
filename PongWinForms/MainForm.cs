@@ -63,8 +63,6 @@ namespace PongWinForms
         private int _framesUntilNextPowerUp = 0;
         private int _powerUpDurationFrames = 0;
         private int _powerUpIntervalFrames = 0;
-        private float _leftPaddleBuffFactor = 1f;
-        private float _rightPaddleBuffFactor = 1f;
         private float _ballSpeedBoostFactor = 1f;
         private bool _lastHitLeft = true;
 
@@ -98,7 +96,6 @@ namespace PongWinForms
         private StateMsg? _latestState;    // latest state snapshot on client
         private int _netTick = 0;                           // simple input tick
         private int _netSendDiv = 2;                        // host: send state every 2nd frame (~30 Hz)
-        private bool _netStarted;
 
 
         // --- Controls inversion state (host authoritative; client mirrors via StateMsg) ---
@@ -112,7 +109,6 @@ namespace PongWinForms
 
         // --- Power-up event sequencing for clients to play one-shot SFX exactly once ---
         private int _powerEventSeq = 0;          // host increments on each pickup
-        private int _clientLastSeenPowerEventSeq = -1; // client tracks last seen
         private PowerUpType _lastSpawnedOrPickedType;
 
 
@@ -222,6 +218,7 @@ namespace PongWinForms
             _timer.Start();
         }
 
+        [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(_menu), nameof(_menuGame), nameof(_menuSettings), nameof(_menuPause), nameof(_menuReset), nameof(_menuFullscreen))]
         private void CreateMenu()
         {
             _menu = new MenuStrip { Dock = DockStyle.Top };
@@ -313,8 +310,6 @@ namespace PongWinForms
             _leftScore = _rightScore = 0;
             _spawnedPowerUp = null;
             _activeEffects.Clear();
-            _leftPaddleBuffFactor = 1f;
-            _rightPaddleBuffFactor = 1f;
             _ballSpeedBoostFactor = 1f;
             ResetPaddles();
             StartNewRound(serveToRight: _rng.Next(2) == 0);
@@ -708,8 +703,7 @@ namespace PongWinForms
                     // effect ends
                     if (type == PowerUpType.EnlargeSelf)
                     {
-                        if (forLeft) _leftPaddleBuffFactor = 1f;
-                        else _rightPaddleBuffFactor = 1f;
+                        // paddle size is restored via the paddle scale fields
                     }
                     else if (type == PowerUpType.BallSpeedBoost)
                     {

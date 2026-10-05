@@ -107,7 +107,7 @@
             @foreach (var player in activeLobby?.Players ?? Array.Empty<Player>())
             {
                 var isCurrent = (activeLobby?.Started ?? false) && player.Id == (activeLobby?.CurrentPlayerId ?? Guid.Empty);
-                var isMe = player.Id == me.Id;
+                var isMe = player.Id == me?.Id;
                 <span class="player-chip @(isCurrent ? "current" : "") @(isMe ? "me" : "")">
                     @player.Name@(isMe ? " (jij)" : "") - @player.Score
                 </span>
@@ -138,7 +138,7 @@
                 <div class="alert alert-warning">Geen zetten meer mogelijk.</div>
             }
 
-            var isMyTurn = (activeLobby?.CurrentPlayerId ?? Guid.Empty) == me.Id;
+            var isMyTurn = me is not null && (activeLobby?.CurrentPlayerId ?? Guid.Empty) == me.Id;
 
             <div class="game-shell @(isMyTurn ? "" : "disabled")"
                  tabindex="0"

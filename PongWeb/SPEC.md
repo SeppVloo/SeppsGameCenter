@@ -9,7 +9,7 @@ Het is bedoeld als bron voor ontwikkelaars én voor een AI-agent die het spel mo
 
 ## 1. Overzicht
 
-- **Type:** Blazor WebAssembly (standalone, .NET 10), gehost als statische site (GitHub Pages, `wwwroot/CNAME`). PWA met service worker en manifest.
+standalone, .NET 11)
 - **Taal UI:** Nederlands. Doelgroep: kinderen/gezin – teksten kort, speels, met emoji.
 - **Platformen:** laptop/desktop (toetsenbord + muis) en iPad/iPhone (touch). Alles moet op beide werken.
 - **Geen eigen server.** Multiplayer gaat peer-to-peer via WebRTC; matchmaking via publieke MQTT-signaalservers (Trystero).
@@ -124,3 +124,4 @@ Volgorde van boven naar beneden:
 touch-apparaten tonen geen toetsenbord-hints. Dit document toegevoegd.
 drone-show met afwisseling.
 - **Help:** inklapbare uitleg "Hoe speel je?" in de lobby.
+- **.NET 11:** geüpgraded naar .NET 11 (RC1) met bijbehorende packages; JS-interop-aanroepen (localStorage, modules) zijn nu afgeschermd met try/catch zodat een browserfout de pagina niet laat crashen.

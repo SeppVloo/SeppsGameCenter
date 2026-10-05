@@ -35,7 +35,7 @@ namespace PongWinForms
         private NumericUpDown _numPort;
 
 
-        public GameSettings Result { get; private set; }
+        public GameSettings? Result { get; private set; }
 
         public SettingsForm(GameSettings defaults)
         {

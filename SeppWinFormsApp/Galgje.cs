@@ -30,6 +30,7 @@ namespace SeppWinFormsApp
         private PictureBox _hangmanBox;
         private int _wrongGuesses = 0;
 
+        [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(_hangmanBox))]
         private void CreateHangmanBox()
         {
             _hangmanBox = new PictureBox
@@ -45,6 +46,7 @@ namespace SeppWinFormsApp
 
 
 
+        [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(_menuStrip), nameof(_menuSpel), nameof(_menuInstellingen))]
         private void CreateMenu()
         {
             _menuStrip = new MenuStrip
