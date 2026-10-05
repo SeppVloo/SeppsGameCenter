@@ -127,3 +127,4 @@ drone-show met afwisseling.
 - **.NET 11:** geüpgraded naar .NET 11 (RC1) met bijbehorende packages; JS-interop-aanroepen (localStorage, modules) zijn nu afgeschermd met try/catch zodat een browserfout de pagina niet laat crashen.
 - **GameCenter:** tegel `🍟 Patat` toegevoegd (route `/patat`, Razor Class Library `Patat`, zie `Patat/SPEC.md`).
 - **Patat losgetrokken:** eigen repo (github.com/SeppVloo/Patat); de GameCenter-tegel linkt nu naar https://seppvloo.github.io/Patat/.
+- **Patat-tegel:** linkt nu naar https://patat.vloo.nl.
