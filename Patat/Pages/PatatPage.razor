@@ -1,0 +1,328 @@
+@page "/patat"
+@page "/patat/{Tab}"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<PageTitle>Patat bestellen – Sepps GameCenter</PageTitle>
+
+<div class="pt">
+    <div class="pt-head">
+        <a class="pt-back" href="./">← GameCenter</a>
+        <h1 class="pt-logo">🍟 PATAT</h1>
+        <span class="pt-status @(Connected ? "on" : "")">@StatusText</span>
+    </div>
+
+    @if (!_ready)
+    {
+        <p class="pt-muted">Laden…</p>
+    }
+    else if (string.IsNullOrWhiteSpace(_name) || string.IsNullOrWhiteSpace(_code) || _editSetup)
+    {
+        <div class="pt-card">
+            <h2>Wie ben jij?</h2>
+            <label>Je naam <input class="pt-input" @bind="_nameInput" placeholder="bijv. Sepp" maxlength="20" /></label>
+            <label>Gezinscode <input class="pt-input" @bind="_codeInput" placeholder="zelfde code voor iedereen" maxlength="30" /></label>
+            <label class="pt-check"><input type="checkbox" @bind="_bakkerInput" /> Ik ben de snackbakker (dit apparaat bewaart voorraad en bestellingen)</label>
+            <button class="pt-btn big" @onclick="SaveSetup" disabled="@(string.IsNullOrWhiteSpace(_nameInput) || string.IsNullOrWhiteSpace(_codeInput))">Klaar</button>
+        </div>
+        <Help />
+    }
+    else
+    {
+        <div class="pt-tabs">
+            <a class="pt-tab @(CurrentTab == "" ? "active" : "")" href="patat">🛒 Bestellen</a>
+            @if (_bakker)
+            {
+                <a class="pt-tab @(CurrentTab == "bakker" ? "active" : "")" href="patat/bakker">👨‍🍳 Bakken</a>
+                <a class="pt-tab @(CurrentTab == "voorraad" ? "active" : "")" href="patat/voorraad">📦 Voorraad</a>
+            }
+            <button class="pt-tab small" @onclick="() => _editSetup = true">⚙ @_name@(_bakker ? " (bakker)" : "")</button>
+        </div>
+
+        @if (!string.IsNullOrEmpty(_msg))
+        {
+            <div class="pt-msg @(_msgError ? "error" : "")" @onclick="() => _msg = null">@_msg</div>
+        }
+
+        @if (CurrentTab == "bakker" && _bakker)
+        {
+            <BakkerView Engine="_engine" Changed="Publish" />
+        }
+        else if (CurrentTab == "voorraad" && _bakker)
+        {
+            <VoorraadView Engine="_engine" Changed="Publish" />
+        }
+        else if (!_bakker && !_hasState)
+        {
+            <div class="pt-card">
+                <h2>⏳ Wachten op de snackbakker…</h2>
+                <p class="pt-muted">Vraag de snackbakker om de patat-app te openen met gezinscode <b>@_code</b>.</p>
+            </div>
+        }
+        else
+        {
+            <div class="pt-card">
+                <h2>Wat wil je, @_name?</h2>
+                @if (!_engine.State.Open)
+                {
+                    <p class="pt-msg error">🔒 De bestellingen zijn gesloten.</p>
+                }
+                <div class="pt-snacks">
+                    @foreach (var s in _engine.State.Snacks)
+                    {
+                        var max = _engine.MaxFor(s.Id, _name);
+                        var n = _draft.GetValueOrDefault(s.Id);
+                        <div class="pt-snack @(max == 0 ? "empty" : "")">
+                            <span class="pt-emoji">@s.Emoji</span>
+                            <span class="pt-name">@s.Name<small>@(max == 0 ? "op" : $"nog {max - n} over")</small></span>
+                            <button class="pt-round" @onclick="() => Change(s.Id, -1)" disabled="@(n == 0)">−</button>
+                            <b class="pt-count">@n</b>
+                            <button class="pt-round" @onclick="() => Change(s.Id, 1)" disabled="@(n >= max || !_engine.State.Open)">+</button>
+                        </div>
+                    }
+                </div>
+                <label>Opmerking (saus, extra zout…) <input class="pt-input" @bind="_note" maxlength="80" /></label>
+                <div class="pt-row">
+                    <button class="pt-btn big" @onclick="SendOrder" disabled="@(!_engine.State.Open || _draft.Values.Sum() == 0)">✅ Bestelling doorgeven</button>
+                    @if (_engine.OrderOf(_name) is not null)
+                    {
+                        <button class="pt-btn ghost" @onclick="CancelOrder">Annuleren</button>
+                    }
+                </div>
+                @if (_pending is not null || _pendingCancel)
+                {
+                    <p class="pt-muted">📡 Versturen naar de snackbakker…</p>
+                }
+                else if (_engine.OrderOf(_name) is { } mine)
+                {
+                    <p class="pt-ok">👍 De snackbakker heeft je bestelling: @Describe(mine)</p>
+                }
+            </div>
+            <Help />
+        }
+    }
+</div>
+
+@code {
+    [Parameter] public string? Tab { get; set; }
+
+    private const string KeyName = "patat.name", KeyCode = "patat.code", KeyBakker = "patat.bakker",
+        KeyState = "patat.state", KeyPending = "patat.pending";
+
+    private readonly PatatEngine _engine = new();
+    private IJSObjectReference? _js;
+    private DotNetObjectReference<PatatPage>? _self;
+    private bool _ready, _bakker, _hasState, _editSetup, _bakkerInput, _msgError, _pendingCancel, _draftTouched;
+    private string _name = "", _code = "", _nameInput = "", _codeInput = "", _note = "";
+    private string? _msg;
+    private int _peers;
+    private Order? _pending;
+    private Dictionary<string, int> _draft = [];
+
+    private string CurrentTab => (Tab ?? "").ToLowerInvariant();
+    private bool Connected => _bakker || _hasState;
+    private string StatusText => _bakker ? $"👨‍🍳 Bakker · {_peers} verbonden" : _hasState ? "🟢 Verbonden" : "🔴 Niet verbonden";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _js = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Patat/patat.js");
+        _name = await _js.InvokeAsync<string?>("load", KeyName) ?? "";
+        _code = await _js.InvokeAsync<string?>("load", KeyCode) ?? "";
+        _bakker = await _js.InvokeAsync<string?>("load", KeyBakker) == "1";
+        (_nameInput, _codeInput, _bakkerInput) = (_name, _code, _bakker);
+        if (_bakker) _engine.Load(await _js.InvokeAsync<string?>("load", KeyState));
+        var pending = await _js.InvokeAsync<string?>("load", KeyPending);
+        if (!string.IsNullOrEmpty(pending))
+        {
+            try { _pending = System.Text.Json.JsonSerializer.Deserialize<Order>(pending, PatatEngine.Json); } catch (System.Text.Json.JsonException) { }
+        }
+        LoadDraft();
+        _self = DotNetObjectReference.Create(this);
+        await Connect();
+        _ready = true;
+        StateHasChanged();
+    }
+
+    private async Task Connect()
+    {
+        if (_js is null || string.IsNullOrWhiteSpace(_code)) return;
+        _hasState = false;
+        await _js.InvokeVoidAsync("start", _self, _code, _bakker);
+    }
+
+    private async Task SaveSetup()
+    {
+        if (_js is null) return;
+        var reconnect = _codeInput.Trim() != _code || _bakkerInput != _bakker;
+        (_name, _code, _bakker) = (_nameInput.Trim(), _codeInput.Trim(), _bakkerInput);
+        await _js.InvokeVoidAsync("save", KeyName, _name);
+        await _js.InvokeVoidAsync("save", KeyCode, _code);
+        await _js.InvokeVoidAsync("save", KeyBakker, _bakker ? "1" : null);
+        _editSetup = false;
+        if (_bakker) _engine.Load(await _js.InvokeAsync<string?>("load", KeyState));
+        if (reconnect) await Connect();
+        _draftTouched = false;
+        LoadDraft();
+        if (_bakker) await Publish();
+    }
+
+    private void LoadDraft()
+    {
+        if (_draftTouched) return;
+        var mine = _pending ?? _engine.OrderOf(_name);
+        _draft = mine is null ? [] : new(mine.Items);
+        _note = mine?.Note ?? "";
+    }
+
+    private void Change(string id, int delta)
+    {
+        _draftTouched = true;
+        var n = Math.Clamp(_draft.GetValueOrDefault(id) + delta, 0, _engine.MaxFor(id, _name));
+        if (n == 0) _draft.Remove(id); else _draft[id] = n;
+    }
+
+    private void Show(string? msg, bool error = false) => (_msg, _msgError) = (msg, error);
+
+    private async Task SendOrder()
+    {
+        var order = new Order { Person = _name, Items = new(_draft), Note = _note.Trim(), Stamp = Guid.NewGuid().ToString("N") };
+        _draftTouched = false;
+        if (_bakker)
+        {
+            var err = _engine.PlaceOrder(order);
+            Show(err ?? "👍 Bestelling staat erin!", err is not null);
+            await Publish();
+            return;
+        }
+        _pending = order;
+        _pendingCancel = false;
+        Show(null);
+        await SavePending();
+        await SendPending();
+    }
+
+    private async Task CancelOrder()
+    {
+        _draft.Clear();
+        _note = "";
+        _draftTouched = false;
+        if (_bakker)
+        {
+            _engine.Cancel(_name);
+            await Publish();
+            return;
+        }
+        _pending = null;
+        _pendingCancel = true;
+        await SavePending();
+        await SendPending();
+    }
+
+    private async Task SavePending()
+    {
+        if (_js is null) return;
+        await _js.InvokeVoidAsync("save", KeyPending, _pending is null ? null : System.Text.Json.JsonSerializer.Serialize(_pending, PatatEngine.Json));
+    }
+
+    private async Task SendPending()
+    {
+        if (_js is null) return;
+        if (_pending is not null) await _js.InvokeVoidAsync("order", System.Text.Json.JsonSerializer.Serialize(_pending, PatatEngine.Json));
+        else if (_pendingCancel) await _js.InvokeVoidAsync("cancel", _name);
+    }
+
+    private async Task Publish()
+    {
+        if (_js is null || !_bakker) return;
+        var json = _engine.ToJson();
+        await _js.InvokeVoidAsync("save", KeyState, json);
+        await _js.InvokeVoidAsync("broadcast", json, null);
+        StateHasChanged();
+    }
+
+    private string Describe(Order o) => string.Join(", ", o.Items.Select(kv => $"{kv.Value}× {_engine.Find(kv.Key)?.Name}"))
+        + (string.IsNullOrEmpty(o.Note) ? "" : $" ({o.Note})");
+
+    [JSInvokable]
+    public async Task OnState(string json)
+    {
+        if (_bakker) return;
+        _engine.Load(json);
+        _hasState = true;
+        if (_pending is not null)
+        {
+            if (_engine.State.Rejected.TryGetValue(_pending.Stamp, out var why))
+            {
+                Show("❌ " + why, true);
+                _pending = null;
+            }
+            else if (_engine.OrderOf(_name)?.Stamp == _pending.Stamp)
+            {
+                Show("👍 Bestelling ontvangen door de snackbakker!");
+                _pending = null;
+            }
+            else await SendPending();
+            await SavePending();
+        }
+        else if (_pendingCancel)
+        {
+            if (_engine.OrderOf(_name) is null) _pendingCancel = false; else await SendPending();
+        }
+        LoadDraft();
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnOrder(string json)
+    {
+        Order? order;
+        try { order = System.Text.Json.JsonSerializer.Deserialize<Order>(json, PatatEngine.Json); } catch (System.Text.Json.JsonException) { return; }
+        if (order is null) return;
+        if (_engine.OrderOf(order.Person)?.Stamp == order.Stamp || _engine.State.Rejected.ContainsKey(order.Stamp))
+        {
+            await Publish();
+            return;
+        }
+        var err = _engine.PlaceOrder(order);
+        if (err is not null) _engine.State.Rejected[order.Stamp] = err;
+        else Show($"🔔 Nieuwe bestelling van {order.Person}");
+        await Publish();
+    }
+
+    [JSInvokable]
+    public async Task OnCancel(string person)
+    {
+        _engine.Cancel(person);
+        await Publish();
+    }
+
+    [JSInvokable]
+    public async Task OnHello(string peer)
+    {
+        if (_js is null || !_bakker) return;
+        await _js.InvokeVoidAsync("broadcast", _engine.ToJson(), peer);
+    }
+
+    [JSInvokable]
+    public void OnPeers(int n)
+    {
+        _peers = n;
+        if (n == 0 && !_bakker) _hasState = false;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_js is not null)
+        {
+            try
+            {
+                await _js.InvokeVoidAsync("leave");
+                await _js.DisposeAsync();
+            }
+            catch (JSDisconnectedException) { }
+        }
+        _self?.Dispose();
+    }
+}

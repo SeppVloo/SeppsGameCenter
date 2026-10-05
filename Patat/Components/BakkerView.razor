@@ -1,0 +1,108 @@
+@implements IDisposable
+
+<div class="pt-card">
+    <div class="pt-row spread">
+        <h2>👨‍🍳 Bakken</h2>
+        <label class="pt-check"><input type="checkbox" @bind="Engine.State.Open" @bind:after="Changed" /> Bestellen open</label>
+    </div>
+
+    @if (Engine.State.Orders.Count == 0)
+    {
+        <p class="pt-muted">Nog geen bestellingen. Iedereen kan nu op zijn eigen apparaat bestellen.</p>
+    }
+    else
+    {
+        var plan = Engine.Plan();
+        <p class="pt-muted">@plan.Count mandje(s), samen ongeveer @plan.Sum(b => b.Minutes) minuten met één frituurpan. Langste eerst, zodat de rest nog warm is.</p>
+        <div class="pt-batches">
+            @foreach (var b in plan)
+            {
+                var st = Engine.BatchState(b.Key);
+                var left = Left(st, b.Minutes);
+                <div class="pt-batch @BatchClass(st, left)">
+                    <div class="pt-batch-head">
+                        <b>@b.Title</b><span>@b.Minutes min</span>
+                    </div>
+                    <ul>
+                        @foreach (var (s, n) in b.Items)
+                        {
+                            <li><b>@n×</b> @s.Emoji @s.Name</li>
+                        }
+                    </ul>
+                    @if (st.Done)
+                    {
+                        <span class="pt-ok">✅ Klaar</span>
+                        <button class="pt-btn ghost small" @onclick="() => Reset(st)">Opnieuw</button>
+                    }
+                    else if (left.HasValue)
+                    {
+                        <span class="pt-timer">@TimerText(left.Value)</span>
+                        <button class="pt-btn small" @onclick="() => Done(st)">✅ Klaar</button>
+                    }
+                    else
+                    {
+                        <button class="pt-btn small" @onclick="() => Start(st)">▶ Start</button>
+                        <button class="pt-btn ghost small" @onclick="() => Done(st)">✅ Klaar</button>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@if (Engine.State.Orders.Count > 0)
+{
+    <div class="pt-card">
+        <h2>🧾 Per persoon</h2>
+        <ul class="pt-orders">
+            @foreach (var o in Engine.State.Orders.OrderBy(o => o.Time))
+            {
+                <li>
+                    <b>@o.Person</b>
+                    <span>@string.Join(", ", o.Items.Select(kv => $"{kv.Value}× {Engine.Find(kv.Key)?.Emoji} {Engine.Find(kv.Key)?.Name}"))</span>
+                    @if (!string.IsNullOrEmpty(o.Note))
+                    {
+                        <i>“@o.Note”</i>
+                    }
+                    <button class="pt-round danger" title="Bestelling verwijderen" @onclick="() => Cancel(o.Person)">✕</button>
+                </li>
+            }
+        </ul>
+        <h3>Totaal</h3>
+        <div class="pt-totals">
+            @foreach (var (id, n) in Engine.Totals())
+            {
+                var s = Engine.Find(id);
+                <span class="pt-total">@n× @s?.Emoji @s?.Name</span>
+            }
+        </div>
+        <button class="pt-btn big" @onclick="Finish">🍽 Nieuwe ronde (bestellingen wissen)</button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public PatatEngine Engine { get; set; } = default!;
+    [Parameter] public Func<Task> Changed { get; set; } = () => Task.CompletedTask;
+
+    private Timer? _timer;
+
+    protected override void OnInitialized() =>
+        _timer = new Timer(_ => InvokeAsync(StateHasChanged), null, 1000, 1000);
+
+    private static TimeSpan? Left(Batch b, int minutes) =>
+        b.StartedUtc.HasValue ? TimeSpan.FromMinutes(minutes) - (DateTime.UtcNow - b.StartedUtc.Value) : null;
+
+    private static string BatchClass(Batch b, TimeSpan? left) =>
+        b.Done ? "done" : left is null ? "" : left.Value <= TimeSpan.Zero ? "ready" : "busy";
+
+    private static string TimerText(TimeSpan rest) =>
+        rest <= TimeSpan.Zero ? "⏰ Eruit halen!" : $"⏱ {rest:m\\:ss}";
+
+    private Task Start(Batch b) { b.StartedUtc = DateTime.UtcNow; return Changed(); }
+    private Task Done(Batch b) { b.Done = true; return Changed(); }
+    private Task Reset(Batch b) { b.Done = false; b.StartedUtc = null; return Changed(); }
+    private Task Cancel(string person) { Engine.Cancel(person); return Changed(); }
+    private Task Finish() { Engine.Finish(); return Changed(); }
+
+    public void Dispose() => _timer?.Dispose();
+}

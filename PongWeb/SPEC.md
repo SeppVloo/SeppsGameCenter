@@ -125,3 +125,4 @@ touch-apparaten tonen geen toetsenbord-hints. Dit document toegevoegd.
 drone-show met afwisseling.
 - **Help:** inklapbare uitleg "Hoe speel je?" in de lobby.
 - **.NET 11:** geüpgraded naar .NET 11 (RC1) met bijbehorende packages; JS-interop-aanroepen (localStorage, modules) zijn nu afgeschermd met try/catch zodat een browserfout de pagina niet laat crashen.
+- **GameCenter:** tegel `🍟 Patat` toegevoegd (route `/patat`, Razor Class Library `Patat`, zie `Patat/SPEC.md`).

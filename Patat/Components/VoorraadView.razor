@@ -1,0 +1,63 @@
+<div class="pt-card">
+    <h2>📦 Voorraad beheren</h2>
+    <p class="pt-muted">Snacks met dezelfde frituurgroep mogen samen gebakken worden. Laat de groep leeg om een snack altijd los te bakken.</p>
+    <div class="pt-stock">
+        <div class="pt-stock-row head">
+            <span></span><span>Snack</span><span>Voorraad</span><span>Min.</span><span>Frituurgroep</span><span></span>
+        </div>
+        @foreach (var s in Engine.State.Snacks)
+        {
+            <div class="pt-stock-row @(s.Stock <= 0 ? "empty" : s.Stock <= 2 ? "low" : "")" @key="s.Id">
+                <input class="pt-input emoji" @bind="s.Emoji" @bind:after="Changed" maxlength="4" />
+                <input class="pt-input" @bind="s.Name" @bind:after="Changed" maxlength="30" />
+                <span class="pt-stepper">
+                    <button class="pt-round" @onclick="() => Add(s, -1)" disabled="@(s.Stock <= 0)">−</button>
+                    <input class="pt-input num" type="number" min="0" @bind="s.Stock" @bind:after="Changed" />
+                    <button class="pt-round" @onclick="() => Add(s, 1)">+</button>
+                </span>
+                <input class="pt-input num" type="number" min="1" max="30" @bind="s.FryMinutes" @bind:after="Changed" />
+                <input class="pt-input" @bind="s.FryGroup" @bind:after="Changed" placeholder="los" maxlength="20" />
+                <button class="pt-round danger" title="Verwijderen" @onclick="() => Remove(s)">🗑</button>
+            </div>
+        }
+    </div>
+    <div class="pt-row">
+        <button class="pt-btn" @onclick="AddSnack">➕ Snack toevoegen</button>
+        <button class="pt-btn ghost" @onclick="Defaults">Standaardlijst terugzetten</button>
+    </div>
+    @if (Engine.State.Orders.Count > 0)
+    {
+        <p class="pt-muted">Let op: de voorraad hierboven is al verminderd met de @Engine.State.Orders.Count lopende bestelling(en).</p>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public PatatEngine Engine { get; set; } = default!;
+    [Parameter] public Func<Task> Changed { get; set; } = () => Task.CompletedTask;
+
+    private Task Add(Snack s, int delta)
+    {
+        s.Stock = Math.Max(0, s.Stock + delta);
+        return Changed();
+    }
+
+    private Task AddSnack()
+    {
+        Engine.State.Snacks.Add(new Snack { Name = "Nieuwe snack" });
+        return Changed();
+    }
+
+    private Task Remove(Snack s)
+    {
+        Engine.State.Snacks.Remove(s);
+        return Changed();
+    }
+
+    private Task Defaults()
+    {
+        Engine.State.Snacks = PatatEngine.DefaultSnacks();
+        Engine.State.Orders.Clear();
+        Engine.State.Batches.Clear();
+        return Changed();
+    }
+}
