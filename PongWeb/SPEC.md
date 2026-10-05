@@ -128,3 +128,4 @@ drone-show met afwisseling.
 - **GameCenter:** tegel `🍟 Patat` toegevoegd (route `/patat`, Razor Class Library `Patat`, zie `Patat/SPEC.md`).
 - **Patat losgetrokken:** eigen repo (github.com/SeppVloo/Patat); de GameCenter-tegel linkt nu naar https://seppvloo.github.io/Patat/.
 - **Patat-tegel:** linkt nu naar https://patat.vloo.nl.
+- **Patat-tegel verwijderd:** Patat is geen onderdeel meer van de GameCenter (eigen app op https://patat.vloo.nl).
