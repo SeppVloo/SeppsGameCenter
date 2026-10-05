@@ -16,7 +16,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Game2048\Game2048.csproj" />
-    <ProjectReference Include="..\Patat\Patat.csproj" />
   </ItemGroup>
 
 </Project>
