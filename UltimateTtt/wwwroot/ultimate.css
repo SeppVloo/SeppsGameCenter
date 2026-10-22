@@ -26,3 +26,5 @@
 .ttt-owner { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: clamp(3rem, 16vmin, 9rem); font-weight: 800; background: rgba(10,8,30,.75); border-radius: 10px; pointer-events: none; }
 .ttt .help ul { padding-left: 1.2rem; margin: .5rem 0 0; }
 .ttt .help li { margin-bottom: .3rem; }
+.ttt-big:focus { outline: none; }
+.ttt-big:focus .ttt-cell.cursor { box-shadow: 0 0 0 3px #22d3ee inset, 0 0 10px #22d3ee; background: rgba(34,211,238,.25); }

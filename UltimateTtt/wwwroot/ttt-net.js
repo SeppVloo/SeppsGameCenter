@@ -259,6 +259,6 @@ export function bind() {
     link.onInput = (slot, move) => dotnet?.invokeMethodAsync("OnRemoteMove", slot, move);
     link.onCmd = m => { if (m.type === "restart") dotnet?.invokeMethodAsync("OnRestartCmd"); };
 }
-export function sendState(s) { link.sendState(s); }
+export function pushState(s) { link.sendState(s); }
 export function sendMove(move, slot) { link.sendInput(move, slot); }
-export function sendCmd(m) { link.sendCmd(m); }
+export function pushCmd(m) { link.sendCmd(m); }

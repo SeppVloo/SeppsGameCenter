@@ -9,7 +9,7 @@ Spelers kunnen mensen op hetzelfde apparaat, mensen op andere apparaten (wifi of
 |---|---|---|
 | Spellogica | `Game/UltimateEngine.cs` | Pure C#: bord, regels, winnaar, (de)serialisatie, computerspeler. Geen UI. |
 | Pagina | `Pages/UltimateTttPage.razor` | Route `/ultimate`: lobby, bord, beurten, AI-lus, netwerk-callbacks. |
-| Netwerk | `wwwroot/ttt-net.js` | Kopie van Pong's `net.js` (Trystero/WebRTC) met eigen `APP_ID` `sepp-ultimate-ttt-v1`, plus Blazor-bridge (`bind`, `sendState`, `sendMove`, `sendCmd`). |
+`pushState`, `sendMove`, `pushCmd`
 | Opmaak | `wwwroot/ultimate.css` | Geladen via `PongWeb/wwwroot/index.html` (`_content/UltimateTtt/ultimate.css`). |
 | Host | `PongWeb/App.razor`, `PongWeb/Pages/GameCenter.razor` | Assembly in `AdditionalAssemblies`; tegel ⭕ in de GameCenter. |
 
@@ -43,6 +43,7 @@ Spelers kunnen mensen op hetzelfde apparaat, mensen op andere apparaten (wifi of
 - Het bord waar gespeeld moet worden licht geel op.
 - De laatste zet heeft een witte rand; een gewonnen klein bord toont groot het teken van de winnaar.
 - Bovenaan staan de spelers met aantal gewonnen borden; wie aan de beurt is, licht op. Een tekstregel zegt wie waar moet spelen.
+- Toetsenbord (laptop): pijltjes/WASD verplaatsen een blauw kader over het bord (blijft binnen het verplichte bord), Enter/spatie speelt, 1-9 kiest direct een vakje in het actieve bord. Het bord krijgt automatisch focus bij de start.
 - Op één apparaat geef je het toestel door aan wie aan de beurt is.
 - Computers wachten ±0,6 s voor hun zet zodat je kunt volgen.
 
@@ -54,3 +55,4 @@ In het spel staat "❓ Hoe speel je?" met de regels en de opzet; houd die gelijk
 - v1.1: ontbrekende stylesheet toegevoegd; groter, duidelijker bord (oplichtend actief bord, kleuren per speler).
 - v1.2: spec volledig uitgeschreven.
 - v1.3: stylesheet echt weggeschreven (was leeg); bord schaalt mee met schermhoogte.
+- v1.4: meedoen via ander apparaat gerepareerd (dubbele JS-exports `sendState`/`sendCmd` braken het netwerkmodule-laden; hernoemd naar `pushState`/`pushCmd`); toetsenbordbesturing toegevoegd.

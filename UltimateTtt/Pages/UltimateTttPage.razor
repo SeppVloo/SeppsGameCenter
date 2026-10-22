@@ -26,7 +26,7 @@
             }
         </div>
         <p class="ttt-msg">@TurnText()</p>
-        <div class="ttt-big @(_game.Over ? "over" : "")">
+        <div class="ttt-big @(_game.Over ? "over" : "")" tabindex="0" @ref="_boardRef" @onkeydown="OnKey" @onkeydown:preventDefault="true">
             @for (var b = 0; b < 9; b++)
             {
                 var bi = b;
@@ -38,7 +38,7 @@
                         var ci = c;
                         var v = _game.Cells[bi * 9 + ci];
                         var can = active && v == UltimateEngine.Empty && CanIPlay;
-                        <button class="ttt-cell @(v >= 0 ? $"p{v}" : "") @(_game.LastMove == bi * 9 + ci ? "last" : "") @(can ? "can" : "")"
+                        <button class="ttt-cell @(v >= 0 ? $"p{v}" : "") @(_game.LastMove == bi * 9 + ci ? "last" : "") @(can ? "can" : "") @(bi * 9 + ci == _cursor && CanIPlay ? "cursor" : "")"
                                 disabled="@(!can)" @onclick="() => ClickCell(bi, ci)">@(v >= 0 ? Marks[v] : "")</button>
                     }
                     @if (owner >= 0)
@@ -175,6 +175,7 @@
             <li>Het vakje waar jij in speelt, bepaalt in welk klein bord de volgende speler moet spelen (oplichtend bord). Is dat bord al vol of gewonnen, dan mag de volgende overal kiezen.</li>
             <li>Wie 3 kleine borden op een rij heeft (net als gewone tik-tak-toe), wint. Zijn alle borden beslist zonder rij, dan wint wie de meeste kleine borden heeft.</li>
             <li>2 tot 4 spelers (✕ ◯ △ ▢) spelen om de beurt. Elke andere plek kan 🤖 computer (😊 makkelijk, 🙂 normaal, 😈 moeilijk), 📱 op dit apparaat of 🌐 ander apparaat zijn.</li>
+            <li>Toetsenbord: pijltjes (of WASD) verplaatsen het blauwe kader, Enter of spatie zet je teken. Cijfers 1-9 kiezen direct een vakje in het actieve bord.</li>
             <li>Op één apparaat geef je het toestel door: wie aan de beurt is, staat bovenaan.</li>
             <li>Met 🌐 plekken klik je "Spel starten"; de anderen kiezen op hun eigen apparaat "Meedoen" (zelfde wifi, of allemaal 🌍 Internet).</li>
         </ul>
@@ -206,6 +207,9 @@
     private IJSObjectReference? _net;
     private DotNetObjectReference<UltimateTttPage>? _self;
     private readonly Random _rng = new();
+private ElementReference _boardRef;
+private int _cursor = 40;
+private bool _boardFocused;
 
     private int HostingPeers => _peers.Count(p => p.Hosting);
     private List<int> RemoteSlots() => Enumerable.Range(1, _count - 1).Where(s => _seat[s] == Seat.Remote).ToList();
@@ -223,7 +227,7 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (!firstRender) { await FocusBoard(); return; }
         _name = await SafeGet<string?>("localStorage.getItem", "pongName") ?? $"Speler {Random.Shared.Next(100, 999)}";
         _self = DotNetObjectReference.Create(this);
         StateHasChanged();
@@ -321,7 +325,8 @@
 
     private async Task Join(string peerId)
     {
-        var names = _joinCount == 2 ? new[] { _name, string.IsNullOrWhiteSpace(_joinName2) ? "Speler 2" : _joinName2 } : new[] { _name };
+        _status = null;
+var names = _joinCount == 2 ? new[] { _name, string.IsNullOrWhiteSpace(_joinName2) ? "Speler 2" : _joinName2 } : new[] { _name };
         await NetVoid("join", peerId, names);
     }
 
@@ -373,7 +378,7 @@
     private async Task Broadcast()
     {
         if (_mode == "host" && _game is not null)
-            await NetVoid("sendState", new { g = _game.Serialize(), n = _names.Take(_count).ToArray() });
+            await NetVoid("pushState", new { g = _game.Serialize(), n = _names.Take(_count).ToArray() });
     }
 
     private async Task LeaveClick()
