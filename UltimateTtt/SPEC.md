@@ -1,1 +1,0 @@
-﻿- v1.1: ontbrekende stylesheet toegevoegd; groter, duidelijker bord (oplichtend actief bord, kleuren per speler).
