@@ -1,0 +1,470 @@
+@page "/ultimate"
+@using UltimateTtt.Game
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<div class="ttt">
+    <div class="ttt-top">
+        <a class="btn icon" href="" @onclick="LeaveClick" @onclick:preventDefault="@(_mode is not null)">← @(_mode is null ? "Game Center" : "Stoppen")</a>
+        <h1>Tik, tak, toe <span class="muted">(Ultimate)</span></h1>
+    </div>
+
+    @if (_status is not null)
+    {
+        <div class="status"><span>@_status</span><button class="close" title="Sluiten" @onclick="() => _status = null">✕</button></div>
+    }
+
+    @if (_mode is not null && _game is not null)
+    {
+        <div class="ttt-players">
+            @for (var p = 0; p < _game.Players; p++)
+            {
+                var pi = p;
+                <span class="ttt-chip p@(pi) @(pi == _game.Turn && !_game.Over ? "turn" : "") @(_mySlots.Contains(pi) ? "mine" : "")">
+                    @Marks[pi] @_names[pi] <b>@_game.Boards.Count(o => o == pi)</b>
+                </span>
+            }
+        </div>
+        <p class="ttt-msg">@TurnText()</p>
+        <div class="ttt-big @(_game.Over ? "over" : "")">
+            @for (var b = 0; b < 9; b++)
+            {
+                var bi = b;
+                var owner = _game.Boards[bi];
+                var active = !_game.Over && owner == UltimateEngine.Empty && (_game.Forced == -1 || _game.Forced == bi);
+                <div class="ttt-small @(active ? "active" : "") @(owner >= 0 ? $"won p{owner}" : owner == UltimateEngine.Draw ? "draw" : "") @(_game.WinLine?.Contains(bi) == true ? "line" : "")">
+                    @for (var c = 0; c < 9; c++)
+                    {
+                        var ci = c;
+                        var v = _game.Cells[bi * 9 + ci];
+                        var can = active && v == UltimateEngine.Empty && CanIPlay;
+                        <button class="ttt-cell @(v >= 0 ? $"p{v}" : "") @(_game.LastMove == bi * 9 + ci ? "last" : "") @(can ? "can" : "")"
+                                disabled="@(!can)" @onclick="() => ClickCell(bi, ci)">@(v >= 0 ? Marks[v] : "")</button>
+                    }
+                    @if (owner >= 0)
+                    {
+                        <div class="ttt-owner p@(owner)">@Marks[owner]</div>
+                    }
+                </div>
+            }
+        </div>
+        @if (_game.Over && _mode != "client")
+        {
+            <button class="btn primary wide" style="margin-top:1rem" @onclick="Restart">↻ Nog een keer</button>
+        }
+    }
+    else if (_hosting)
+    {
+        <div class="card waiting">
+            <div class="radar"></div>
+            <p>Wachten op spelers... (@_lobbyPlayers.Count / @RemoteSlots().Count)</p>
+            <p class="muted small">@(_online ? "Iedereen op internet" : "Iedereen op dit wifinetwerk") kan nu meedoen via "Meedoen". Eén apparaat mag 2 spelers meenemen.</p>
+            @if (_lobbyPlayers.Count > 0)
+            {
+                <p class="muted small">@string.Join(", ", _lobbyPlayers)</p>
+            }
+            <button class="btn wide" @onclick="CancelHosting">Annuleren</button>
+        </div>
+    }
+    else
+    {
+        <div class="seg tabs">
+            <button class="btn @(_tab == 0 ? "sel" : "")" @onclick="() => _tab = 0">🎮 Nieuw spel</button>
+            <button class="btn @(_tab == 1 ? "sel" : "")" @onclick="() => _tab = 1">🤝 Meedoen @if (HostingPeers > 0) { <span class="badge">@HostingPeers</span> }</button>
+        </div>
+
+        @if (_tab == 0)
+        {
+            <div class="card">
+                <label>AANTAL SPELERS</label>
+                <div class="seg">
+                    @for (var n = 2; n <= 4; n++)
+                    {
+                        var c = n;
+                        <button class="btn @(_count == c ? "sel" : "")" @onclick="() => _count = c">@c</button>
+                    }
+                </div>
+                <div class="ttt-seats">
+                    @for (var s = 0; s < _count; s++)
+                    {
+                        var slot = s;
+                        <div class="seat-box">
+                            <span class="ttt-mark p@(slot)">@Marks[slot]</span>
+                            @if (slot == 0)
+                            {
+                                <div class="seat me">🙂 Jij</div>
+                                <input class="input sm" placeholder="Jouw naam" value="@_name" @onchange="NameChanged" maxlength="20" />
+                            }
+                            else
+                            {
+                                var kind = _seat[slot];
+                                <button class="btn seat @(kind == Seat.Ai ? "ai" : kind == Seat.Local ? "local" : "")" @onclick="() => ToggleSeat(slot)">@(kind == Seat.Ai ? "🤖 Computer" : kind == Seat.Local ? "📱 Op dit apparaat" : "🌐 Ander apparaat")</button>
+                                @if (kind == Seat.Local)
+                                {
+                                    <input class="input sm" placeholder="Naam" value="@_localNames[slot]" maxlength="20" @onchange="e => _localNames[slot] = e.Value?.ToString() ?? string.Empty" />
+                                }
+                                else if (kind == Seat.Ai)
+                                {
+                                    <div class="seg speed">
+                                        @for (var lv = 0; lv < AiLevels.Length; lv++)
+                                        {
+                                            var l = lv;
+                                            <button class="btn @(_aiLevel[slot] == l ? "sel" : "")" title="@AiLevels[l].Name" @onclick="() => _aiLevel[slot] = l">@AiLevels[l].Icon</button>
+                                        }
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+                <p class="muted small" style="margin:.5rem 0 0">Tik op een plek om te wisselen: 🤖 computer → 📱 op dit apparaat (max. 2 spelers per apparaat) → 🌐 ander apparaat.</p>
+                @if (RemoteSlots().Count > 0)
+                {
+                    <label style="margin-top:.75rem">ANDERE APPARATEN VIA</label>
+                    <div class="seg">
+                        <button class="btn @(!_online ? "sel" : "")" @onclick="() => SetOnline(false)">📶 Wifi</button>
+                        <button class="btn @(_online ? "sel" : "")" @onclick="() => SetOnline(true)">🌍 Internet</button>
+                    </div>
+                }
+                <button class="btn primary wide" style="margin-top:.75rem" @onclick="Start">▶ @(RemoteSlots().Count == 0 ? "Spelen" : "Spel starten")</button>
+            </div>
+        }
+        else
+        {
+            <div class="card">
+                <div class="seg">
+                    <button class="btn @(!_online ? "sel" : "")" @onclick="() => SetOnline(false)">📶 Wifi</button>
+                    <button class="btn @(_online ? "sel" : "")" @onclick="() => SetOnline(true)">🌍 Internet</button>
+                </div>
+                <label style="margin-top:.75rem">HOEVEEL SPELERS OP DIT APPARAAT?</label>
+                <div class="seg">
+                    <button class="btn @(_joinCount == 1 ? "sel" : "")" @onclick="() => _joinCount = 1">1</button>
+                    <button class="btn @(_joinCount == 2 ? "sel" : "")" @onclick="() => _joinCount = 2">2</button>
+                </div>
+                <div class="join-names">
+                    <input class="input sm" placeholder="Jouw naam" value="@_name" @onchange="NameChanged" maxlength="20" />
+                    @if (_joinCount == 2)
+                    {
+                        <input class="input sm" placeholder="Naam speler 2" value="@_joinName2" maxlength="20" @onchange="e => _joinName2 = e.Value?.ToString() ?? string.Empty" />
+                    }
+                </div>
+            </div>
+            <div class="card">
+                <h3>@if (_netReady) { <span class="live-dot"></span> } <span>Spellen</span></h3>
+                @if (!_netReady)
+                {
+                    <p class="empty">Verbinden...</p>
+                }
+                else if (HostingPeers == 0)
+                {
+                    <p class="empty small">Nog geen spellen. Laat iemand anders een spel starten met een 🌐 plek.</p>
+                }
+                @foreach (var peer in _peers.Where(p => p.Hosting))
+                {
+                    <button class="btn success wide" @onclick="() => Join(peer.Id)"><span>@peer.Name</span><span>Meedoen →</span></button>
+                }
+            </div>
+        }
+    }
+
+    <details class="card help">
+        <summary>❓ Hoe speel je?</summary>
+        <ul>
+            <li>Het grote bord bestaat uit 9 kleine tik-tak-toe-borden.</li>
+            <li>Win een klein bord met 3 op een rij; dat bord wordt dan van jou.</li>
+            <li>Het vakje waar jij in speelt, bepaalt in welk klein bord de volgende speler moet spelen (oplichtend bord). Is dat bord al vol of gewonnen, dan mag de volgende overal kiezen.</li>
+            <li>Wie 3 kleine borden op een rij heeft (net als gewone tik-tak-toe), wint. Zijn alle borden beslist zonder rij, dan wint wie de meeste kleine borden heeft.</li>
+            <li>2 tot 4 spelers (✕ ◯ △ ▢) spelen om de beurt. Elke andere plek kan 🤖 computer (😊 makkelijk, 🙂 normaal, 😈 moeilijk), 📱 op dit apparaat of 🌐 ander apparaat zijn.</li>
+            <li>Op één apparaat geef je het toestel door: wie aan de beurt is, staat bovenaan.</li>
+            <li>Met 🌐 plekken klik je "Spel starten"; de anderen kiezen op hun eigen apparaat "Meedoen" (zelfde wifi, of allemaal 🌍 Internet).</li>
+        </ul>
+    </details>
+</div>
+
+@code {
+    private static readonly string[] Marks = ["✕", "◯", "△", "▢"];
+    private static readonly (string Icon, string Name)[] AiLevels = [("😊", "Makkelijk"), ("🙂", "Normaal"), ("😈", "Moeilijk")];
+    private enum Seat { Ai, Local, Remote }
+
+    public record Peer(string Id, string Name, bool Hosting);
+    public record SlotName(int Slot, string Name);
+
+    private UltimateEngine? _game;
+    private string? _mode; // "local" | "host" | "client"
+    private string? _status;
+    private int _tab, _count = 2, _joinCount = 1;
+    private readonly Seat[] _seat = [Seat.Local, Seat.Ai, Seat.Ai, Seat.Ai];
+    private readonly int[] _aiLevel = [1, 1, 1, 1];
+    private readonly string[] _localNames = ["", "Speler 2", "Speler 3", "Speler 4"];
+    private string[] _names = new string[4];
+    private bool[] _ai = new bool[4];
+    private int[] _mySlots = [0];
+    private string _name = "", _joinName2 = "Speler 2";
+    private bool _online, _hosting, _netReady, _aiBusy;
+    private List<Peer> _peers = [];
+    private List<string> _lobbyPlayers = [];
+    private IJSObjectReference? _net;
+    private DotNetObjectReference<UltimateTttPage>? _self;
+    private readonly Random _rng = new();
+
+    private int HostingPeers => _peers.Count(p => p.Hosting);
+    private List<int> RemoteSlots() => Enumerable.Range(1, _count - 1).Where(s => _seat[s] == Seat.Remote).ToList();
+    private bool CanIPlay => _game is not null && !_game.Over && !_aiBusy && _mySlots.Contains(_game.Turn) && !(_mode != "client" && _ai[_game.Turn]);
+
+    private string TurnText()
+    {
+        if (_game is null) return "";
+        if (_game.Over)
+            return _game.Winner >= 0 ? $"🏆 {_names[_game.Winner]} ({Marks[_game.Winner]}) wint!" : "🤝 Gelijkspel!";
+        var who = $"{Marks[_game.Turn]} {_names[_game.Turn]}";
+        var where = _game.Forced == -1 ? "mag overal spelen" : "speelt in het oplichtende bord";
+        return CanIPlay && _mySlots.Length == 1 ? $"Jij bent aan de beurt en {where}." : $"{who} is aan de beurt en {where}.";
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        _name = await SafeGet<string?>("localStorage.getItem", "pongName") ?? $"Speler {Random.Shared.Next(100, 999)}";
+        _self = DotNetObjectReference.Create(this);
+        StateHasChanged();
+        try
+        {
+            _net = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/UltimateTtt/ttt-net.js");
+            await _net.InvokeVoidAsync("start", _self, _name);
+            await _net.InvokeVoidAsync("bind");
+            _netReady = true;
+            StateHasChanged();
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+        {
+            Console.WriteLine($"Netwerk mislukt: {ex.Message}");
+        }
+    }
+
+    private async Task<T?> SafeGet<T>(string id, params object?[] args)
+    {
+        try { return await JS.InvokeAsync<T>(id, args); }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { return default; }
+    }
+
+    private async Task NetVoid(string id, params object?[] args)
+    {
+        if (_net is null) return;
+        try { await _net.InvokeVoidAsync(id, args); }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"JS '{id}' mislukt: {ex.Message}"); }
+    }
+
+    private async Task NameChanged(ChangeEventArgs e)
+    {
+        _name = (e.Value?.ToString() ?? "").Trim();
+        if (_name.Length == 0) _name = "Speler";
+        try { await JS.InvokeVoidAsync("localStorage.setItem", "pongName", _name); } catch (JSException) { }
+        await NetVoid("setName", _name);
+    }
+
+    private int LocalCount() => 1 + Enumerable.Range(1, _count - 1).Count(s => _seat[s] == Seat.Local);
+
+    private void ToggleSeat(int slot)
+    {
+        var next = _seat[slot] switch { Seat.Ai => Seat.Local, Seat.Local => Seat.Remote, _ => Seat.Ai };
+        if (next == Seat.Local && LocalCount() >= 2) next = Seat.Remote;
+        _seat[slot] = next;
+    }
+
+    private async Task SetOnline(bool online)
+    {
+        if (_online == online) return;
+        _online = online;
+        _netReady = false;
+        _peers = [];
+        await NetVoid("setRoomCode", online ? "ultimate-ttt" : "");
+        _netReady = true;
+    }
+
+    private string[] KnownNames()
+    {
+        var n = new string[_count];
+        n[0] = _name;
+        for (var s = 1; s < _count; s++)
+            n[s] = _seat[s] switch
+            {
+                Seat.Ai => $"Computer {AiLevels[_aiLevel[s]].Icon}",
+                Seat.Local => string.IsNullOrWhiteSpace(_localNames[s]) ? $"Speler {s + 1}" : _localNames[s],
+                _ => "?",
+            };
+        return n;
+    }
+
+    private async Task Start()
+    {
+        _names = KnownNames();
+        _ai = Enumerable.Range(0, 4).Select(s => s > 0 && s < _count && _seat[s] == Seat.Ai).ToArray();
+        _mySlots = Enumerable.Range(0, _count).Where(s => s == 0 || _seat[s] == Seat.Local).ToArray();
+        var remote = RemoteSlots();
+        if (remote.Count == 0)
+        {
+            _mode = "local";
+            NewGame();
+            return;
+        }
+        _hosting = true;
+        _lobbyPlayers = [];
+        var known = Enumerable.Range(0, _count).Where(s => _seat[s] != Seat.Remote || s == 0).Select(s => new SlotName(s, _names[s])).ToArray();
+        await NetVoid("setHosting", true, remote, known);
+    }
+
+    private async Task CancelHosting()
+    {
+        _hosting = false;
+        await NetVoid("setHosting", false, Array.Empty<int>(), Array.Empty<SlotName>());
+    }
+
+    private async Task Join(string peerId)
+    {
+        var names = _joinCount == 2 ? new[] { _name, string.IsNullOrWhiteSpace(_joinName2) ? "Speler 2" : _joinName2 } : new[] { _name };
+        await NetVoid("join", peerId, names);
+    }
+
+    private void NewGame()
+    {
+        _game = new UltimateEngine();
+        _game.Reset(_count, _rng.Next(_count));
+        _ = AfterMove();
+    }
+
+    private async Task Restart()
+    {
+        if (_game is null) return;
+        NewGame();
+        await Broadcast();
+    }
+
+    private async Task ClickCell(int b, int c)
+    {
+        if (_game is null || !CanIPlay) return;
+        if (_mode == "client")
+        {
+            await NetVoid("sendMove", b * 9 + c, _game.Turn);
+            return;
+        }
+        if (_game.Play(b, c)) await AfterMove();
+    }
+
+    // Host/local: broadcast and let computer players move.
+    private async Task AfterMove()
+    {
+        await Broadcast();
+        while (_game is not null && !_game.Over && _ai[_game.Turn] && _mode is "local" or "host")
+        {
+            _aiBusy = true;
+            StateHasChanged();
+            var g = _game;
+            await Task.Delay(600);
+            if (_game != g) return;
+            var (b, c) = g.BestMove(_aiLevel[g.Turn], _rng);
+            g.Play(b, c);
+            _aiBusy = false;
+            await Broadcast();
+        }
+        _aiBusy = false;
+        StateHasChanged();
+    }
+
+    private async Task Broadcast()
+    {
+        if (_mode == "host" && _game is not null)
+            await NetVoid("sendState", new { g = _game.Serialize(), n = _names.Take(_count).ToArray() });
+    }
+
+    private async Task LeaveClick()
+    {
+        if (_mode is null) return;
+        if (_mode is "host" or "client") await NetVoid("leave");
+        _mode = null;
+        _game = null;
+        _hosting = false;
+    }
+
+    // --- Called from JavaScript ---
+
+    [JSInvokable] public void OnPeers(List<Peer> peers) { _peers = peers; StateHasChanged(); }
+    [JSInvokable] public void OnDiag(object _) { }
+    [JSInvokable] public void OnStatus(string status) { _status = status; StateHasChanged(); }
+    [JSInvokable] public void OnLobbyPlayers(List<string> names) { _lobbyPlayers = names; StateHasChanged(); }
+
+    [JSInvokable]
+    public void OnGameStart(int[] slots, List<SlotName> all)
+    {
+        _hosting = false;
+        _mySlots = slots;
+        if (slots.Contains(0))
+        {
+            _mySlots = Enumerable.Range(0, _count).Where(s => s == 0 || _seat[s] == Seat.Local).ToArray();
+            foreach (var r in all) _names[r.Slot] = r.Name;
+            _mode = "host";
+            NewGame();
+        }
+        else
+        {
+            _mode = "client";
+            _names = new string[4];
+            foreach (var r in all) if (r.Slot < 4) _names[r.Slot] = r.Name;
+            _game = null;
+        }
+        StateHasChanged();
+    }
+
+    public record StateMsg(string G, string[] N);
+
+    [JSInvokable]
+    public void OnState(StateMsg s)
+    {
+        if (_mode != "client") return;
+        _game ??= new UltimateEngine();
+        _game.Load(s.G);
+        for (var i = 0; i < s.N.Length && i < 4; i++) _names[i] = s.N[i];
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public async Task OnRemoteMove(int slot, int move)
+    {
+        if (_mode != "host" || _game is null || _game.Turn != slot || _ai[slot]) return;
+        if (_game.Play(move / 9, move % 9)) await AfterMove();
+    }
+
+    [JSInvokable] public Task OnRestartCmd() => Task.CompletedTask;
+
+    [JSInvokable]
+    public async Task OnPlayerLeft(int slot, string name)
+    {
+        if (_game is null) return;
+        _ai[slot] = true;
+        _names[slot] = $"{name} (computer)";
+        await AfterMove();
+    }
+
+    [JSInvokable]
+    public void OnGameEnd(string reason)
+    {
+        _mode = null;
+        _game = null;
+        _hosting = false;
+        _status = reason;
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_net is not null)
+            {
+                if (_mode is "host" or "client") await _net.InvokeVoidAsync("leave");
+                await _net.DisposeAsync();
+            }
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}

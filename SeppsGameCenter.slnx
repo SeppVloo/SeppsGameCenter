@@ -11,4 +11,5 @@
   <Project Path="SeppConsoleApp/SeppConsoleApp.csproj" />
   <Project Path="SeppWinFormsApp/SeppWinFormsApp.csproj" />
   <Project Path="SteenPapierSchaar/SteenPapierSchaar.csproj" />
+  <Project Path="UltimateTtt/UltimateTtt.csproj" />
 </Solution>

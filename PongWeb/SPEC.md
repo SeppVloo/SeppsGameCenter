@@ -129,3 +129,5 @@ drone-show met afwisseling.
 - **Patat losgetrokken:** eigen repo (github.com/SeppVloo/Patat); de GameCenter-tegel linkt nu naar https://seppvloo.github.io/Patat/.
 - **Patat-tegel:** linkt nu naar https://patat.vloo.nl.
 - **Patat-tegel verwijderd:** Patat is geen onderdeel meer van de GameCenter (eigen app op https://patat.vloo.nl).
+
+- GameCenter: nieuw spel Tik, tak, toe (Ultimate) toegevoegd (zie UltimateTtt/SPEC.md).
