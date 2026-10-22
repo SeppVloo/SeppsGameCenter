@@ -53,3 +53,4 @@ In het spel staat "❓ Hoe speel je?" met de regels en de opzet; houd die gelijk
 - v1: eerste versie (2–4 spelers, computerspelers, lokaal + wifi/internet).
 - v1.1: ontbrekende stylesheet toegevoegd; groter, duidelijker bord (oplichtend actief bord, kleuren per speler).
 - v1.2: spec volledig uitgeschreven.
+- v1.3: stylesheet echt weggeschreven (was leeg); bord schaalt mee met schermhoogte.

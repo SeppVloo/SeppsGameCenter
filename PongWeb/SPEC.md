@@ -131,3 +131,4 @@ drone-show met afwisseling.
 - **Patat-tegel verwijderd:** Patat is geen onderdeel meer van de GameCenter (eigen app op https://patat.vloo.nl).
 
 - GameCenter: nieuw spel Tik, tak, toe (Ultimate) toegevoegd (zie UltimateTtt/SPEC.md).
+- GameCenter: compactere speltegels zodat 4 spellen op één rij passen.
