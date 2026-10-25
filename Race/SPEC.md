@@ -24,7 +24,7 @@
 - Basissnelheid start op 1,0 en stijgt met 0,02/s tot max 2,6. Gas = +50%, remmen = −50%. Naast de weg (gras): snelheid ×0,45.
 - **Bochten:** segmenten van 6–16 eenheden, recht of kromming 0,15–0,4 (zacht in/uit). In een bocht word je naar buiten geduwd: `kromming × snelheid² × 0,3` per seconde; tegensturen nodig.
 - Verkeer rijdt dezelfde kant op met een vaste snelheid per baan (0,45/0,55/0,65/0,75); per rij 1 of 2 auto's, rijen komen steeds dichter op elkaar. ~35% van de rijen heeft een munt in een vrije baan, anders 12% kans op een power-up.
-- **Baanwissels:** ~35% van de auto's wisselt naar een buurbaan als ze 2–7 eenheden voor je rijden: eerst 1,3 s knipperlicht, dan in 0,9 s opschuiven. Alleen als de doelbaan vrij is. Deterministisch op auto-id (gelijk voor iedereen met dezelfde seed).
+- **Baanwissels:** ~45% van de auto's wisselt naar een buurbaan (links of rechts, wat vrij is) zodra je ze over ~2 s inhaalt: eerst 1,3 s knipperlicht, dan in 0,9 s opschuiven. Alleen als de doelbaan vrij is. Deterministisch op auto-id (gelijk voor iedereen met dezelfde seed).
 - **Power-ups:** 👻 spook (5 s door andere auto's heen rijden), ⚡ turbo (4 s snelheid ×1,5), ❤️ extra leven (max 5).
 - Auto's zijn 0,16 breed; botsing als de afstand zijwaarts < 0,147 is (en < 0,176 in rijrichting). Op de lijn tussen twee auto's in naastgelegen banen door rijden kan dus niet.
 - 3 levens. Botsing: −1 leven, snelheid ×0,4, 2 seconden onkwetsbaar (knipperen). 0 levens: *Game over* / uit de race.
@@ -33,7 +33,7 @@
 
 ## Weergave
 - Bovenaanzicht: weg buigt mee met de bochten; auto's draaien mee met de richting van de weg; wielen steken uit de carrosserie en de voorwielen van je eigen auto draaien zichtbaar mee met sturen. Knipperlichten bij baanwissels.
-- Cockpit: camera zit 0,35 achter de bestuurder met breder beeld (meer zijkant zichtbaar); wegsegmenten 3x fijner (0,1) voor een 3x vloeiender beeld; segmenten liggen vast in de wereld, verre segmenten kleiner dan een pixel worden overgeslagen. Auto's voor je draaien mee in de bocht en tonen dan hun zijkant. Dashboard met snelheid/levens en een stuur dat meedraait.
+- Cockpit: camera zit 0,9 achter en hoger (0,32) met horizon op 45% en breder beeld, zodat de hele weg en de bermen zichtbaar zijn (meer zijkant zichtbaar); wegsegmenten 3x fijner (0,1) voor een 3x vloeiender beeld; segmenten liggen vast in de wereld, verre segmenten kleiner dan een pixel worden overgeslagen. Auto's voor je draaien mee in de bocht en tonen dan hun zijkant. Dashboard met snelheid/levens en een stuur dat meedraait.
 
 ## Multiplayer
 - **Samen (split-screen):** 2 spelers, twee canvassen naast elkaar, dezelfde seed, startbanen 2 en 3. Race van 3 km (150 eenheden).
@@ -60,3 +60,4 @@
 
 - Fix: syntaxfout in race.js (afgebroken constantenregel) waardoor het spel niet meer startte; online spelers groeten elkaar nu elke 2 s opnieuw en verschijnen direct bij binnenkomst, zodat ze elkaar altijd vinden.
 - **Power-ups en knipperende auto's:** power-ups spook/turbo/extra leven; verkeer wisselt soms van baan na knipperen; online via MQTT-berichten i.p.v. WebRTC (spelers vonden elkaar niet); duidelijk draaiende voorwielen in bovenaanzicht; cockpit 3x fijnere segmenten en camera verder naar achteren.
+- **Fix zichtbaarheid en online:** baanwissels gebeuren nu vlak voor je (zichtbaar), probeert beide richtingen; cockpitcamera verder naar achteren/hoger; online spookauto's vloeiend (volgnummers tegen dubbele/oude berichten, voorspelling met snelheid en zachte correctie).

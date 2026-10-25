@@ -248,7 +248,7 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
 
 function drawCockpit(ctx, W, H, f, ghosts, sky) {
     // Camera zit iets achter en boven de bestuurder met een bredere blik, zodat je meer van de zijkant ziet.
-    const hor = H * 0.4, fl = W * 0.62, camH = 0.26, BACK = 0.35;
+    const hor = H * 0.45, fl = W * 0.7, camH = 0.32, BACK = 0.9;
     const offRaw = offsets(f.curves);
     const off = d => offRaw(d) * COCKPIT_CURVE;
     const px = (u, d) => W / 2 + (u + off(d) - f.x) * fl / (d + BACK);

@@ -193,20 +193,27 @@ public sealed class RaceEngine
         {
             if (c.Decided) continue;
             var dz = c.ZAt(Time) - Z;
-            if (dz > 7 || dz < 2) continue;
+            if (dz < 0) { c.Decided = true; continue; }
+            // Beslis als de speler er over ~2 s is: dan zie je het knipperen en de wissel ook in het bovenaanzicht.
+            var closing = Math.Max(0.3, Speed - c.Speed);
+            if (dz / closing > 2.2 && dz > 1.4) continue;
             c.Decided = true;
             var h = (uint)(c.Id * 2654435761u);
-            if (h % 100 >= 35) continue;
-            var dir = (h >> 8) % 2 == 0 ? -1 : 1;
-            if (c.Lane + dir is < 0 or >= Track.Lanes) dir = -dir;
-            var target = c.Lane + dir;
+            if (h % 100 >= 45) continue;
+            var first = (h >> 8) % 2 == 0 ? -1 : 1;
             var moveAt = Time + TrafficCar.SignalTime;
-            var end = moveAt + TrafficCar.MoveTime + 1;
-            var blocked = _cars.Any(o => o != c && (o.Lane == target || o.Target == target) &&
-                (Math.Abs(o.ZAt(moveAt) - c.ZAt(moveAt)) < 0.8 || Math.Abs(o.ZAt(end) - c.ZAt(end)) < 0.8));
-            if (blocked) continue;
-            c.Target = target;
-            c.MoveAt = moveAt;
+            var end = moveAt + TrafficCar.MoveTime + 0.5;
+            foreach (var dir in new[] { first, -first })
+            {
+                var target = c.Lane + dir;
+                if (target is < 0 or >= Track.Lanes) continue;
+                var blocked = _cars.Any(o => o != c && (o.Lane == target || o.Target == target) &&
+                    (Math.Abs(o.ZAt(moveAt) - c.ZAt(moveAt)) < 0.5 || Math.Abs(o.ZAt(end) - c.ZAt(end)) < 0.5));
+                if (blocked) continue;
+                c.Target = target;
+                c.MoveAt = moveAt;
+                break;
+            }
         }
     }
 
