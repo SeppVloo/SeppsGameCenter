@@ -19,7 +19,7 @@ Spelers kunnen mensen op hetzelfde apparaat, mensen op andere apparaten (wifi of
 - Naam wordt gedeeld met Pong via localStorage-sleutel `pongName`.
 
 ## Spelvorm
-- Bij een nieuw spel kies je **#️⃣ Standaard** of **🧩 Ultimate** (standaard: Ultimate).
+(standaard: Standaard)
 - Standaard: één 3×3-bord (intern klein bord 0, `Forced = 0`), 3 op een rij wint, vol bord = gelijkspel. Werkt met dezelfde spelers, computers, toetsenbord en netwerk.
 - De spelvorm zit in de snapshot (`Classic`, 9e veld) zodat andere apparaten het juiste bord tonen.
 
@@ -62,3 +62,4 @@ In het spel staat "❓ Hoe speel je?" met de regels en de opzet; houd die gelijk
 - v1.3: stylesheet echt weggeschreven (was leeg); bord schaalt mee met schermhoogte.
 toetsenbordbesturing toegevoegd.
 - v1.5: keuze tussen Standaard en Ultimate tik-tak-toe.
+- v1.6: Standaard is de voorgeselecteerde spelvorm.

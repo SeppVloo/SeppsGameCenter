@@ -200,7 +200,7 @@
     private string? _mode; // "local" | "host" | "client"
     private string? _status;
     private int _tab, _count = 2, _joinCount = 1;
-    private bool _classic;
+    private bool _classic = true;
     private readonly Seat[] _seat = [Seat.Local, Seat.Ai, Seat.Ai, Seat.Ai];
     private readonly int[] _aiLevel = [1, 1, 1, 1];
     private readonly string[] _localNames = ["", "Speler 2", "Speler 3", "Speler 4"];
