@@ -5,7 +5,14 @@
 
 <div class="ttt">
     <div class="ttt-top">
-        <a class="btn icon" href="" @onclick="LeaveClick" @onclick:preventDefault="@(_mode is not null)">← @(_mode is null ? "Game Center" : "Stoppen")</a>
+        @if (_mode is null && !_hosting)
+        {
+            <a class="btn icon" href="">← Game Center</a>
+        }
+        else
+        {
+            <button class="btn icon" @onclick="LeaveClick">← Stoppen</button>
+        }
         <h1>Tik, tak, toe <span class="muted">(@((_game?.Classic ?? _classic) ? "Standaard" : "Ultimate"))</span></h1>
     </div>
 
@@ -390,11 +397,13 @@ var names = _joinCount == 2 ? new[] { _name, string.IsNullOrWhiteSpace(_joinName
 
     private async Task LeaveClick()
     {
+        if (_hosting && _mode is null) { await CancelHosting(); return; }
         if (_mode is null) return;
         if (_mode is "host" or "client") await NetVoid("leave");
         _mode = null;
         _game = null;
         _hosting = false;
+        _tab = 0;
     }
 
     // --- Called from JavaScript ---

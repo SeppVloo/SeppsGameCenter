@@ -63,3 +63,4 @@ In het spel staat "❓ Hoe speel je?" met de regels en de opzet; houd die gelijk
 toetsenbordbesturing toegevoegd.
 - v1.5: keuze tussen Standaard en Ultimate tik-tak-toe.
 - v1.6: Standaard is de voorgeselecteerde spelvorm.
+- v1.7: "← Stoppen" tijdens het spel (of wachten) brengt je terug naar het beginscherm van het spel i.p.v. de GameCenter.
