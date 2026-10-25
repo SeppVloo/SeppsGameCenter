@@ -61,3 +61,4 @@
 - Fix: syntaxfout in race.js (afgebroken constantenregel) waardoor het spel niet meer startte; online spelers groeten elkaar nu elke 2 s opnieuw en verschijnen direct bij binnenkomst, zodat ze elkaar altijd vinden.
 - **Power-ups en knipperende auto's:** power-ups spook/turbo/extra leven; verkeer wisselt soms van baan na knipperen; online via MQTT-berichten i.p.v. WebRTC (spelers vonden elkaar niet); duidelijk draaiende voorwielen in bovenaanzicht; cockpit 3x fijnere segmenten en camera verder naar achteren.
 - **Fix zichtbaarheid en online:** baanwissels gebeuren nu vlak voor je (zichtbaar), probeert beide richtingen; cockpitcamera verder naar achteren/hoger; online spookauto's vloeiend (volgnummers tegen dubbele/oude berichten, voorspelling met snelheid en zachte correctie).
+- **Meer power-ups:** magneet, schild, dubbele munten en mini erbij; power-ups vaker (16%).

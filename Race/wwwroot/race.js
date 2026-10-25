@@ -157,8 +157,8 @@ function drawCarTop(ctx, cx, cy, k, color, glow, angle = 0, wheel = 0, blink = 0
 }
 
 const blinkOn = () => Math.floor(performance.now() / 250) % 2 === 0;
-const PU_ICONS = ["👻", "⚡", "❤️"];
-const PU_COLORS = ["#c4b5fd", "#fde047", "#fb7185"];
+const PU_ICONS = ["👻", "⚡", "❤️", "🧲", "🛡️", "✖️2", "🐜"];
+const PU_COLORS = ["#c4b5fd", "#fde047", "#fb7185", "#f87171", "#38bdf8", "#4ade80", "#fdba74"];
 
 function drawPowerUp(ctx, x, y, r, kind) {
     const pulse = 1 + Math.sin(performance.now() / 150) * 0.1;
@@ -239,7 +239,18 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
             ctx.fillStyle = blinkOn() ? "#f97316" : "#fde047";
             ctx.beginPath(); ctx.arc(sx(f.x, 0), py + CAR_H * k * 0.6, CAR_W * k * 0.25, 0, Math.PI * 2); ctx.fill();
         }
-        drawCarTop(ctx, sx(f.x, 0), py, k, myColor, true, f.steer * 0.2, f.steer * 0.6);
+        const pk = f.shrink > 0 ? k * 0.6 : k;
+        if (f.shield > 0) {
+            ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 3; ctx.shadowColor = "#38bdf8"; ctx.shadowBlur = 12;
+            ctx.beginPath(); ctx.arc(sx(f.x, 0), py, CAR_H * pk * 0.75, 0, Math.PI * 2); ctx.stroke();
+            ctx.shadowBlur = 0;
+        }
+        if (f.magnet > 0) {
+            ctx.strokeStyle = "rgba(248,113,113,.35)"; ctx.lineWidth = 2; ctx.setLineDash([6, 6]);
+            ctx.beginPath(); ctx.arc(sx(f.x, 0), py, 0.45 * k, 0, Math.PI * 2); ctx.stroke();
+            ctx.setLineDash([]);
+        }
+        drawCarTop(ctx, sx(f.x, 0), py, pk, myColor, true, f.steer * 0.2, f.steer * 0.6);
         ctx.globalAlpha = 1;
     }
 }
@@ -423,8 +434,9 @@ function drawHud(ctx, W, H, f, name) {
     ctx.fillText(right, W - 18, 28);
     ctx.textAlign = "center";
     if (name) { ctx.fillStyle = "rgba(11,16,38,.6)"; roundRect(ctx, W / 2 - 60, 50, 120, 28, 8); ctx.fillStyle = "#fff"; ctx.fillText(name, W / 2, 64); }
-    const pu = [f.ghost > 0 ? `👻 ${Math.ceil(f.ghost)}` : "", f.boost > 0 ? `⚡ ${Math.ceil(f.boost)}` : ""].filter(Boolean).join("  ");
-    if (pu) { ctx.fillStyle = "rgba(11,16,38,.6)"; roundRect(ctx, W / 2 - 60, name ? 84 : 50, 120, 28, 8); ctx.fillStyle = "#fff"; ctx.fillText(pu, W / 2, name ? 98 : 64); }
+    const pu = [[f.ghost, "👻"], [f.boost, "⚡"], [f.magnet, "🧲"], [f.double, "✖️2"], [f.shrink, "🐜"]]
+        .filter(([t]) => t > 0).map(([t, i]) => `${i} ${Math.ceil(t)}`).concat(f.shield > 0 ? ["🛡️"] : []).join("  ");
+    if (pu) { const pw = Math.max(120, pu.length * 11); ctx.fillStyle = "rgba(11,16,38,.6)"; roundRect(ctx, W / 2 - pw / 2, name ? 84 : 50, pw, 28, 8); ctx.fillStyle = "#fff"; ctx.fillText(pu, W / 2, name ? 98 : 64); }
 
     let big = "";
     if (f.status === "Countdown") big = String(Math.ceil(f.countdown));

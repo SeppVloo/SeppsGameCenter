@@ -31,7 +31,7 @@ public sealed class TrafficCar
         Target >= 0 && time >= MoveAt - SignalTime && time < MoveAt + MoveTime ? Math.Sign(Target - Lane) : 0;
 }
 
-public enum PowerUpKind { Ghost, Boost, Heart }
+public enum PowerUpKind { Ghost, Boost, Heart, Magnet, Shield, Double, Shrink }
 
 public sealed class PowerUp
 {
@@ -56,7 +56,7 @@ public sealed class Coin
 public sealed record RaceFrame(
     double X, double Z, double Steer, bool Blink, double[] Cars, double[] Coins, double[] Curves,
     double FinishDz, int Score, int Meters, int Lives, int Kmh, double Countdown, double FinishTime, string Status,
-    double[] PowerUps, double Ghost, double Boost);
+    double[] PowerUps, double Ghost, double Boost, double Magnet, double Shield, double Double, double Shrink);
 
 /// <summary>Pure spellogica van de racegame. Weg loopt van x=0 tot 1 (4 banen); z is de afstand langs de baan.</summary>
 public sealed class RaceEngine
@@ -74,6 +74,9 @@ public sealed class RaceEngine
     public const int MaxLives = 5;
     public const double GhostSeconds = 5;
     public const double BoostSeconds = 4;
+    public const double MagnetSeconds = 8;
+    public const double DoubleSeconds = 10;
+    public const double ShrinkSeconds = 7;
     private const double ViewBehind = 1.5;
 
     private readonly List<TrafficCar> _cars = [];
@@ -96,6 +99,11 @@ public sealed class RaceEngine
     public double Invulnerable { get; private set; }
     public double GhostLeft { get; private set; }
     public double BoostLeft { get; private set; }
+    public double MagnetLeft { get; private set; }
+    public double DoubleLeft { get; private set; }
+    public double ShrinkLeft { get; private set; }
+    /// <summary>Schild vangt de volgende botsing op.</summary>
+    public bool Shield { get; private set; }
     public IReadOnlyList<PowerUp> PowerUps => _powerUps;
     /// <summary>Afstand van de finish in baan-eenheden, of 0 voor eindeloos.</summary>
     public double FinishZ { get; private set; }
@@ -116,7 +124,8 @@ public sealed class RaceEngine
         _cars.Clear();
         _coins.Clear();
         _powerUps.Clear();
-        GhostLeft = BoostLeft = 0;
+        GhostLeft = BoostLeft = MagnetLeft = DoubleLeft = ShrinkLeft = 0;
+        Shield = false;
         Status = RaceStatus.Ready;
         X = Track.LaneX(1);
         Z = Speed = Time = Countdown = Steer = Invulnerable = 0;
@@ -160,6 +169,9 @@ public sealed class RaceEngine
         Time += dt;
         GhostLeft = Math.Max(0, GhostLeft - dt);
         BoostLeft = Math.Max(0, BoostLeft - dt);
+        MagnetLeft = Math.Max(0, MagnetLeft - dt);
+        DoubleLeft = Math.Max(0, DoubleLeft - dt);
+        ShrinkLeft = Math.Max(0, ShrinkLeft - dt);
         var target = BaseSpeed * (1 + 0.5 * throttle) * (OffRoad ? 0.45 : 1) * (BoostLeft > 0 ? 1.5 : 1);
         Speed += Math.Clamp(target - Speed, -2.5 * dt, 1.2 * dt);
         Z += Speed * dt;
@@ -229,6 +241,10 @@ public sealed class RaceEngine
                     case PowerUpKind.Ghost: GhostLeft = GhostSeconds; break;
                     case PowerUpKind.Boost: BoostLeft = BoostSeconds; break;
                     case PowerUpKind.Heart: Lives = Math.Min(MaxLives, Lives + 1); break;
+                    case PowerUpKind.Magnet: MagnetLeft = MagnetSeconds; break;
+                    case PowerUpKind.Shield: Shield = true; break;
+                    case PowerUpKind.Double: DoubleLeft = DoubleSeconds; break;
+                    case PowerUpKind.Shrink: ShrinkLeft = ShrinkSeconds; break;
                 }
                 _powerUps.RemoveAt(i);
             }
@@ -237,20 +253,23 @@ public sealed class RaceEngine
         for (int i = _coins.Count - 1; i >= 0; i--)
         {
             var c = _coins[i];
-            if (Math.Abs(c.X - X) < CarW / 2 + CoinR && Math.Abs(c.Z - Z) < CarH / 2 + CoinR)
+            var reach = MagnetLeft > 0 ? (0.45, 0.6) : (CarW / 2 + CoinR, CarH / 2 + CoinR);
+            if (Math.Abs(c.X - X) < reach.Item1 && Math.Abs(c.Z - Z) < reach.Item2)
             {
-                CoinCount++;
+                CoinCount += DoubleLeft > 0 ? 2 : 1;
                 _coins.RemoveAt(i);
             }
         }
 
         if (Invulnerable > 0 || GhostLeft > 0) return;
+        var size = ShrinkLeft > 0 ? 0.55 : 1;
         foreach (var c in _cars)
         {
             if (c.Id == _lastHit) continue;
-            if (Math.Abs(c.XAt(Time) - X) < CarW * 0.92 && Math.Abs(c.ZAt(Time) - Z) < CarH * 0.8)
+            if (Math.Abs(c.XAt(Time) - X) < CarW * (0.5 + 0.42 * size) && Math.Abs(c.ZAt(Time) - Z) < CarH * (0.4 + 0.4 * size))
             {
                 _lastHit = c.Id;
+                if (Shield) { Shield = false; Invulnerable = 1; return; }
                 Lives--;
                 Speed *= 0.4;
                 if (Lives <= 0) Status = RaceStatus.GameOver;
@@ -284,6 +303,6 @@ public sealed class RaceEngine
         var blink = Invulnerable > 0 && (int)(Invulnerable * 8) % 2 == 0;
         var finishDz = FinishZ > 0 ? FinishZ - Z : -1;
         return new RaceFrame(X, Z, Steer, blink, cars, coins, curves, finishDz, Score, Meters, Lives, Kmh, Countdown, FinishTime ?? -1, Status.ToString(),
-            pu, GhostLeft, BoostLeft);
+            pu, GhostLeft, BoostLeft, MagnetLeft, Shield ? 1 : 0, DoubleLeft, ShrinkLeft);
     }
 }
