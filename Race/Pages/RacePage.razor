@@ -1,0 +1,132 @@
+@page "/race"
+@using Race.Game
+@implements IAsyncDisposable
+@inject IJSRuntime JS
+
+<PageTitle>Race – Sepps GameCenter</PageTitle>
+
+<div class="race">
+    <div class="race-head">
+        <a class="race-back" href="./">← GameCenter</a>
+        <h1 class="race-logo">RACE</h1>
+        <div class="race-scores">
+            <div class="race-score"><span>Score</span><b>@_engine.Score</b></div>
+            <div class="race-score"><span>Beste</span><b>@_best</b></div>
+        </div>
+    </div>
+
+    <div class="race-bar">
+        <span class="race-hint">@(_touch ? "Sleep je vinger om te sturen" : "←/→ of A/D sturen · ↑/W gas · ↓/S remmen")</span>
+        <button class="race-btn" @onclick="StartGame">@(_engine.Status == RaceStatus.Running ? "Opnieuw" : "Start")</button>
+    </div>
+
+    <details class="race-help">
+        <summary>❓ Hoe speel je?</summary>
+        <ul>
+            <li>Druk op <b>Start</b>. Je auto rijdt vanzelf over de snelweg en gaat steeds sneller.</li>
+            <li>@(_touch ? "Sleep je vinger over de weg; je auto stuurt naar je vinger toe." : "Stuur met ←/→ of A/D. Geef extra gas met ↑/W en rem met ↓/S.")</li>
+            <li>Ontwijk de andere auto's. Je hebt <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden.</li>
+            <li>Elke meter is 1 punt, elke munt 🪙 is <b>@RaceEngine.CoinPoints punten</b>. Je beste score wordt bewaard.</li>
+            <li><b>Tip:</b> er is altijd minstens één baan vrij. Sneller rijden = sneller punten, maar ook sneller botsen!</li>
+        </ul>
+    </details>
+
+    <div class="race-track">
+        <canvas class="race-canvas" @ref="_canvas" width="400" height="640"></canvas>
+
+        @if (_engine.Status == RaceStatus.Ready)
+        {
+            <div class="race-overlay">
+                <h2>🏎️ Klaar?</h2>
+                <p>Ontwijk het verkeer en pak de munten.</p>
+                <button class="race-btn" @onclick="StartGame">Start</button>
+            </div>
+        }
+        else if (_engine.Status == RaceStatus.GameOver)
+        {
+            <div class="race-overlay">
+                <h2>💥 Game over</h2>
+                <p>@_engine.Meters m · @_engine.CoinCount munten · score @_engine.Score</p>
+                @if (_newBest) { <p class="race-best">🏆 Nieuwe beste score!</p> }
+                <button class="race-btn" @onclick="StartGame">Opnieuw</button>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private const string BestKey = "race.best";
+    private readonly RaceEngine _engine = new();
+    private ElementReference _canvas;
+    private DotNetObjectReference<RacePage>? _self;
+    private IJSObjectReference? _js;
+    private int _best;
+    private bool _touch;
+    private bool _newBest;
+    private int _shownScore;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _js = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Race/race.js");
+            _self = DotNetObjectReference.Create(this);
+            await _js.InvokeVoidAsync("init", _self, _canvas);
+            _touch = await JS.InvokeAsync<bool>("eval", "matchMedia('(pointer: coarse)').matches");
+            _best = int.TryParse(await _js.InvokeAsync<string?>("load", BestKey), out var b) ? b : 0;
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+        {
+            Console.WriteLine($"Race JS init mislukt: {ex.Message}");
+        }
+        StateHasChanged();
+    }
+
+    [JSInvokable]
+    public RaceFrame Tick(double dt, double steer, double throttle)
+    {
+        var before = _engine.Status;
+        _engine.Tick(dt, steer, throttle);
+        if (_engine.Status == RaceStatus.GameOver && before != RaceStatus.GameOver)
+            _ = GameOverAsync();
+        else if (_engine.Score / 10 != _shownScore / 10)
+        {
+            _shownScore = _engine.Score;
+            StateHasChanged();
+        }
+        return _engine.Frame();
+    }
+
+    private async Task GameOverAsync()
+    {
+        _newBest = _engine.Score > _best;
+        if (_newBest)
+        {
+            _best = _engine.Score;
+            if (_js is not null)
+            {
+                try { await _js.InvokeVoidAsync("save", BestKey, _best.ToString()); }
+                catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"Race opslaan mislukt: {ex.Message}"); }
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void StartGame()
+    {
+        _newBest = false;
+        _shownScore = 0;
+        _engine.Start();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_js is not null) { await _js.InvokeVoidAsync("dispose"); await _js.DisposeAsync(); }
+        }
+        catch (JSDisconnectedException) { }
+        _self?.Dispose();
+    }
+}

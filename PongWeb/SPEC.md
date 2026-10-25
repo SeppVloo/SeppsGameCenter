@@ -132,3 +132,4 @@ drone-show met afwisseling.
 
 - GameCenter: nieuw spel Tik, tak, toe (Ultimate) toegevoegd (zie UltimateTtt/SPEC.md).
 - GameCenter: compactere speltegels zodat 4 spellen op één rij passen.
+- GameCenter: nieuw spel 🏎️ Race toegevoegd (route `/race`, Razor Class Library `Race`, zie `Race/SPEC.md`); vervangt de "Nieuw spel"-placeholder.
