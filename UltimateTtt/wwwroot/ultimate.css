@@ -27,4 +27,7 @@
 .ttt .help ul { padding-left: 1.2rem; margin: .5rem 0 0; }
 .ttt .help li { margin-bottom: .3rem; }
 .ttt-big:focus { outline: none; }
+.ttt-big.classic { grid-template-columns: 1fr; grid-template-rows: 1fr; width: min(100%, calc(100vh - 13rem), 480px); }
+.ttt-big.classic .ttt-small { gap: 8px; padding: 10px; }
+.ttt-big.classic .ttt-cell { font-size: clamp(2rem, 12vmin, 5rem); border-radius: 10px; }
 .ttt-big:focus .ttt-cell.cursor { box-shadow: 0 0 0 3px #22d3ee inset, 0 0 10px #22d3ee; background: rgba(34,211,238,.25); }

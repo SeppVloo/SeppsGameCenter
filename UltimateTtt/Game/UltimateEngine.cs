@@ -27,14 +27,17 @@ public sealed class UltimateEngine
     public int[]? WinLine { get; private set; }
 
     public bool Over => Winner != Empty;
+    /// <summary>Standard tic-tac-toe: only small board 0 is used and winning it wins the game.</summary>
+    public bool Classic { get; private set; }
 
-    public void Reset(int players, int firstTurn = 0)
+    public void Reset(int players, int firstTurn = 0, bool classic = false)
     {
+        Classic = classic;
         Players = Math.Clamp(players, 2, 4);
         Array.Fill(Cells, Empty);
         Array.Fill(Boards, Empty);
         Turn = firstTurn % Players;
-        Forced = -1; Winner = Empty; LastMove = -1; WinLine = null;
+        Forced = classic ? 0 : -1; Winner = Empty; LastMove = -1; WinLine = null;
     }
 
     public bool CanPlay(int b, int c) =>
@@ -47,6 +50,13 @@ public sealed class UltimateEngine
         Cells[b * 9 + c] = Turn;
         LastMove = b * 9 + c;
         Boards[b] = SmallResult(b);
+
+        if (Classic)
+        {
+            if (Boards[0] != Empty) { Winner = Boards[0]; WinLine = Boards[0] >= 0 ? Lines.First(l => l.All(x => Cells[x] == Winner)) : null; }
+            else Turn = (Turn + 1) % Players;
+            return true;
+        }
 
         var (w, line) = BigResult();
         if (w != Empty) { Winner = w; WinLine = line; Forced = -1; return true; }
@@ -91,7 +101,7 @@ public sealed class UltimateEngine
 
     // ---------- Snapshot (sent from host to other devices) ----------
     public string Serialize() =>
-        $"{Players};{Turn};{Forced};{Winner};{LastMove};{string.Join(',', Cells)};{string.Join(',', Boards)};{(WinLine is null ? "" : string.Join(',', WinLine))}";
+        $"{Players};{Turn};{Forced};{Winner};{LastMove};{string.Join(',', Cells)};{string.Join(',', Boards)};{(WinLine is null ? "" : string.Join(',', WinLine))};{(Classic ? 1 : 0)}";
 
     public void Load(string s)
     {
@@ -101,6 +111,7 @@ public sealed class UltimateEngine
         Cells = p[5].Split(',').Select(int.Parse).ToArray();
         Boards = p[6].Split(',').Select(int.Parse).ToArray();
         WinLine = p[7].Length == 0 ? null : p[7].Split(',').Select(int.Parse).ToArray();
+        Classic = p.Length > 8 && p[8] == "1";
     }
 
     public UltimateEngine Clone()

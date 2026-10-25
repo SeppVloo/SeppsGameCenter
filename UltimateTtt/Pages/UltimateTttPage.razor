@@ -6,7 +6,7 @@
 <div class="ttt">
     <div class="ttt-top">
         <a class="btn icon" href="" @onclick="LeaveClick" @onclick:preventDefault="@(_mode is not null)">← @(_mode is null ? "Game Center" : "Stoppen")</a>
-        <h1>Tik, tak, toe <span class="muted">(Ultimate)</span></h1>
+        <h1>Tik, tak, toe <span class="muted">(@((_game?.Classic ?? _classic) ? "Standaard" : "Ultimate"))</span></h1>
     </div>
 
     @if (_status is not null)
@@ -21,13 +21,13 @@
             {
                 var pi = p;
                 <span class="ttt-chip p@(pi) @(pi == _game.Turn && !_game.Over ? "turn" : "") @(_mySlots.Contains(pi) ? "mine" : "")">
-                    @Marks[pi] @_names[pi] <b>@_game.Boards.Count(o => o == pi)</b>
+                    @Marks[pi] @_names[pi] @if (!_game.Classic) { <b>@_game.Boards.Count(o => o == pi)</b> }
                 </span>
             }
         </div>
         <p class="ttt-msg">@TurnText()</p>
-        <div class="ttt-big @(_game.Over ? "over" : "")" tabindex="0" @ref="_boardRef" @onkeydown="OnKey" @onkeydown:preventDefault="true">
-            @for (var b = 0; b < 9; b++)
+        <div class="ttt-big @(_game.Over ? "over" : "") @(_game.Classic ? "classic" : "")" tabindex="0" @ref="_boardRef" @onkeydown="OnKey" @onkeydown:preventDefault="true">
+            @for (var b = 0; b < (_game.Classic ? 1 : 9); b++)
             {
                 var bi = b;
                 var owner = _game.Boards[bi];
@@ -41,7 +41,7 @@
                         <button class="ttt-cell @(v >= 0 ? $"p{v}" : "") @(_game.LastMove == bi * 9 + ci ? "last" : "") @(can ? "can" : "") @(bi * 9 + ci == _cursor && CanIPlay ? "cursor" : "")"
                                 disabled="@(!can)" @onclick="() => ClickCell(bi, ci)">@(v >= 0 ? Marks[v] : "")</button>
                     }
-                    @if (owner >= 0)
+                    @if (owner >= 0 && !_game.Classic)
                     {
                         <div class="ttt-owner p@(owner)">@Marks[owner]</div>
                     }
@@ -76,7 +76,12 @@
         @if (_tab == 0)
         {
             <div class="card">
-                <label>AANTAL SPELERS</label>
+                <label>SPELVORM</label>
+                <div class="seg">
+                    <button class="btn @(_classic ? "sel" : "")" @onclick="() => _classic = true">#️⃣ Standaard</button>
+                    <button class="btn @(!_classic ? "sel" : "")" @onclick="() => _classic = false">🧩 Ultimate</button>
+                </div>
+                <label style="margin-top:.75rem">AANTAL SPELERS</label>
                 <div class="seg">
                     @for (var n = 2; n <= 4; n++)
                     {
@@ -169,6 +174,7 @@
 
     <details class="card help">
         <summary>❓ Hoe speel je?</summary>
+        <p class="small">Kies bij <b>Spelvorm</b>: <b>Standaard</b> = één bord van 3×3, wie 3 op een rij heeft wint (vol bord = gelijkspel). <b>Ultimate</b> = de regels hieronder.</p>
         <ul>
             <li>Het grote bord bestaat uit 9 kleine tik-tak-toe-borden.</li>
             <li>Win een klein bord met 3 op een rij; dat bord wordt dan van jou.</li>
@@ -194,6 +200,7 @@
     private string? _mode; // "local" | "host" | "client"
     private string? _status;
     private int _tab, _count = 2, _joinCount = 1;
+    private bool _classic;
     private readonly Seat[] _seat = [Seat.Local, Seat.Ai, Seat.Ai, Seat.Ai];
     private readonly int[] _aiLevel = [1, 1, 1, 1];
     private readonly string[] _localNames = ["", "Speler 2", "Speler 3", "Speler 4"];
@@ -221,7 +228,7 @@ private bool _boardFocused;
         if (_game.Over)
             return _game.Winner >= 0 ? $"🏆 {_names[_game.Winner]} ({Marks[_game.Winner]}) wint!" : "🤝 Gelijkspel!";
         var who = $"{Marks[_game.Turn]} {_names[_game.Turn]}";
-        var where = _game.Forced == -1 ? "mag overal spelen" : "speelt in het oplichtende bord";
+        var where = _game.Classic ? "mag een vakje kiezen" : _game.Forced == -1 ? "mag overal spelen" : "speelt in het oplichtende bord";
         return CanIPlay && _mySlots.Length == 1 ? $"Jij bent aan de beurt en {where}." : $"{who} is aan de beurt en {where}.";
     }
 
@@ -333,7 +340,7 @@ var names = _joinCount == 2 ? new[] { _name, string.IsNullOrWhiteSpace(_joinName
     private void NewGame()
     {
         _game = new UltimateEngine();
-        _game.Reset(_count, _rng.Next(_count));
+        _game.Reset(_count, _rng.Next(_count), _classic);
         _ = AfterMove();
     }
 

@@ -18,6 +18,11 @@ Spelers kunnen mensen op hetzelfde apparaat, mensen op andere apparaten (wifi of
 - Client → host: `input` met `y = b*9+c` (bord b, vakje c) en `slot` = spelende plek. De host controleert dat die plek aan de beurt is en geen computer is.
 - Naam wordt gedeeld met Pong via localStorage-sleutel `pongName`.
 
+## Spelvorm
+- Bij een nieuw spel kies je **#️⃣ Standaard** of **🧩 Ultimate** (standaard: Ultimate).
+- Standaard: één 3×3-bord (intern klein bord 0, `Forced = 0`), 3 op een rij wint, vol bord = gelijkspel. Werkt met dezelfde spelers, computers, toetsenbord en netwerk.
+- De spelvorm zit in de snapshot (`Classic`, 9e veld) zodat andere apparaten het juiste bord tonen.
+
 ## Regels
 1. Het grote bord bestaat uit 9 kleine 3×3-borden (b = 0..8, vakje c = 0..8, links-boven naar rechts-onder).
 2. Drie op een rij (horizontaal, verticaal, diagonaal) in een klein bord wint dat bord. Een vol bord zonder winnaar is gelijk (telt voor niemand).
@@ -55,4 +60,5 @@ In het spel staat "❓ Hoe speel je?" met de regels en de opzet; houd die gelijk
 - v1.1: ontbrekende stylesheet toegevoegd; groter, duidelijker bord (oplichtend actief bord, kleuren per speler).
 - v1.2: spec volledig uitgeschreven.
 - v1.3: stylesheet echt weggeschreven (was leeg); bord schaalt mee met schermhoogte.
-- v1.4: meedoen via ander apparaat gerepareerd (dubbele JS-exports `sendState`/`sendCmd` braken het netwerkmodule-laden; hernoemd naar `pushState`/`pushCmd`); toetsenbordbesturing toegevoegd.
+toetsenbordbesturing toegevoegd.
+- v1.5: keuze tussen Standaard en Ultimate tik-tak-toe.
