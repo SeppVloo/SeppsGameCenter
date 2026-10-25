@@ -56,7 +56,7 @@ public sealed class Coin
 public sealed record RaceFrame(
     double X, double Z, double Steer, bool Blink, double[] Cars, double[] Coins, double[] Curves,
     double FinishDz, int Score, int Meters, int Lives, int Kmh, double Countdown, double FinishTime, string Status,
-    double[] PowerUps, double Ghost, double Boost, double Magnet, double Shield, double Double, double Shrink);
+    double[] PowerUps, double Ghost, double Boost, double Magnet, double Shield, double Double, double Shrink, int[] Picks);
 
 /// <summary>Pure spellogica van de racegame. Weg loopt van x=0 tot 1 (4 banen); z is de afstand langs de baan.</summary>
 public sealed class RaceEngine
@@ -82,8 +82,13 @@ public sealed class RaceEngine
     private readonly List<TrafficCar> _cars = [];
     private readonly List<Coin> _coins = [];
     private readonly List<PowerUp> _powerUps = [];
+    private readonly List<int> _picks = [];
     private int _lastHit = -1;
     private Track _track = new(1);
+
+    public RaceSettings Settings { get; private set; } = new();
+    /// <summary>Gedeelde set van al gepakte power-ups (multiplayer): wie het eerst is krijgt hem, de rest niet meer.</summary>
+    public ISet<int>? Claimed { get; set; }
 
     public RaceEngine() => Reset();
 
@@ -112,7 +117,7 @@ public sealed class RaceEngine
     public IReadOnlyList<Coin> Coins => _coins;
     public Track Track => _track;
 
-    public double BaseSpeed => Math.Min(1.0 + Time * 0.02, 2.6);
+    public double BaseSpeed => Math.Min(Settings.StartSpeed + Time * Settings.SpeedUp, Settings.MaxSpeed);
     public bool OffRoad => X < 0 || X > 1;
     public int Meters => (int)(Math.Min(Z, FinishZ > 0 ? FinishZ : double.MaxValue) * MetersPerUnit);
     public int Score => Meters + CoinCount * CoinPoints;
@@ -128,9 +133,10 @@ public sealed class RaceEngine
         Shield = false;
         Status = RaceStatus.Ready;
         X = Track.LaneX(1);
-        Z = Speed = Time = Countdown = Steer = Invulnerable = 0;
-        Lives = StartLives;
+        Z = Speed = Time = Countdown = Steer = Invulnerable = Bumped = 0;
+        Lives = Settings.Lives;
         CoinCount = 0;
+        _picks.Clear();
         FinishTime = null;
         _lastHit = -1;
     }
@@ -139,10 +145,11 @@ public sealed class RaceEngine
     /// <param name="finishZ">0 = eindeloos, anders lengte van de race.</param>
     /// <param name="lane">Startbaan (0-3).</param>
     /// <param name="countdown">Seconden aftellen voor de start.</param>
-    public void Start(int seed, double finishZ = 0, int lane = 1, double countdown = 3)
+    public void Start(int seed, double finishZ = 0, int lane = 1, double countdown = 3, RaceSettings? settings = null)
     {
+        Settings = (settings ?? new RaceSettings()).Clamped();
         Reset();
-        _track = new Track(seed);
+        _track = new Track(seed, Settings);
         FinishZ = finishZ;
         X = Track.LaneX(Math.Clamp(lane, 0, Track.Lanes - 1));
         Countdown = countdown;
@@ -152,8 +159,10 @@ public sealed class RaceEngine
     /// <param name="dt">Seconden sinds vorige tick.</param>
     /// <param name="steer">-1 (links) tot 1 (rechts).</param>
     /// <param name="throttle">-1 (remmen) tot 1 (gas).</param>
-    public void Tick(double dt, double steer, double throttle)
+    /// <param name="others">Posities (z,x) van andere spelers waar je tegenaan kunt botsen.</param>
+    public void Tick(double dt, double steer, double throttle, IReadOnlyList<(double Z, double X)>? others = null)
     {
+        _picks.Clear();
         dt = Math.Clamp(dt, 0, 0.05);
         Steer += (Math.Clamp(steer, -1, 1) - Steer) * Math.Min(1, dt * 12);
         if (Status == RaceStatus.Countdown)
@@ -176,6 +185,7 @@ public sealed class RaceEngine
         Speed += Math.Clamp(target - Speed, -2.5 * dt, 1.2 * dt);
         Z += Speed * dt;
         Invulnerable = Math.Max(0, Invulnerable - dt);
+        Bumped = Math.Max(0, Bumped - dt);
 
         var curve = _track.Curve(Z);
         X = Math.Clamp(X + (Steer * 1.3 - curve * Speed * Speed * Drift) * dt, -0.2, 1.2);
@@ -186,7 +196,9 @@ public sealed class RaceEngine
         _powerUps.RemoveAll(p => p.Z < Z - ViewBehind);
         PlanLaneChanges();
 
+        if (Claimed is not null) _powerUps.RemoveAll(p => Claimed.Contains(p.Id));
         CheckCollisions();
+        if (Status == RaceStatus.Running && others is not null && Settings.PlayerCollision) CheckPlayers(others);
 
         if (Status == RaceStatus.Running && FinishZ > 0 && Z >= FinishZ)
         {
@@ -211,7 +223,7 @@ public sealed class RaceEngine
             if (dz / closing > 2.2 && dz > 1.4) continue;
             c.Decided = true;
             var h = (uint)(c.Id * 2654435761u);
-            if (h % 100 >= 45) continue;
+            if (h % 100 >= (uint)Settings.LaneChange) continue;
             var first = (h >> 8) % 2 == 0 ? -1 : 1;
             var moveAt = Time + TrafficCar.SignalTime;
             var end = moveAt + TrafficCar.MoveTime + 0.5;
@@ -247,6 +259,8 @@ public sealed class RaceEngine
                     case PowerUpKind.Shrink: ShrinkLeft = ShrinkSeconds; break;
                 }
                 _powerUps.RemoveAt(i);
+                _picks.Add(p.Id);
+                Claimed?.Add(p.Id);
             }
         }
 
@@ -269,15 +283,37 @@ public sealed class RaceEngine
             if (Math.Abs(c.XAt(Time) - X) < CarW * (0.5 + 0.42 * size) && Math.Abs(c.ZAt(Time) - Z) < CarH * (0.4 + 0.4 * size))
             {
                 _lastHit = c.Id;
-                if (Shield) { Shield = false; Invulnerable = 1; return; }
-                Lives--;
-                Speed *= 0.4;
-                if (Lives <= 0) Status = RaceStatus.GameOver;
-                else Invulnerable = 2;
+                Crash();
                 return;
             }
         }
     }
+
+    private void Crash()
+    {
+        if (Shield) { Shield = false; Invulnerable = 1; return; }
+        Lives--;
+        Speed *= 0.4;
+        if (Lives <= 0) Status = RaceStatus.GameOver;
+        else Invulnerable = 2;
+    }
+
+    /// <summary>Botsing met een andere speler: je wordt opzij geduwd en remt wat af, maar verliest geen leven.</summary>
+    private void CheckPlayers(IReadOnlyList<(double Z, double X)> others)
+    {
+        foreach (var (oz, ox) in others)
+        {
+            if (GhostLeft > 0) return;
+            if (Math.Abs(ox - X) >= CarW * 0.9 || Math.Abs(oz - Z) >= CarH * 0.85) continue;
+            var side = X - ox == 0 ? (oz < Z ? 1 : -1) : Math.Sign(X - ox);
+            X = Math.Clamp(ox + side * CarW * 0.9, -0.2, 1.2);
+            if (oz > Z) Speed *= 0.85;
+            Bumped = 0.3;
+        }
+    }
+
+    /// <summary>Seconden dat de "bonk" van een spelersbotsing nog zichtbaar is.</summary>
+    public double Bumped { get; private set; }
 
     public RaceFrame Frame()
     {
@@ -300,9 +336,9 @@ public sealed class RaceEngine
         var curves = new double[CurveSamples];
         for (int i = 0; i < CurveSamples; i++) curves[i] = _track.Curve(Z + i * CurveStep);
 
-        var blink = Invulnerable > 0 && (int)(Invulnerable * 8) % 2 == 0;
+        var blink = (Invulnerable > 0 && (int)(Invulnerable * 8) % 2 == 0) || (Bumped > 0 && (int)(Bumped * 20) % 2 == 0);
         var finishDz = FinishZ > 0 ? FinishZ - Z : -1;
         return new RaceFrame(X, Z, Steer, blink, cars, coins, curves, finishDz, Score, Meters, Lives, Kmh, Countdown, FinishTime ?? -1, Status.ToString(),
-            pu, GhostLeft, BoostLeft, MagnetLeft, Shield ? 1 : 0, DoubleLeft, ShrinkLeft);
+            pu, GhostLeft, BoostLeft, MagnetLeft, Shield ? 1 : 0, DoubleLeft, ShrinkLeft, [.. _picks]);
     }
 }

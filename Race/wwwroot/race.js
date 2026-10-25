@@ -67,15 +67,16 @@ function loop(t) {
     const dt = last ? Math.min((t - last) / 1000, 0.1) : 0;
     last = t;
     if (!dotnet) return;
+    const remote = online && net ? net.ghosts() : [];
     try {
-        frames = dotnet.invokeMethod("Tick", dt, inputs(Math.max(1, canvases.length)));
+        frames = dotnet.invokeMethod("Tick", dt, inputs(Math.max(1, canvases.length)), remote.flatMap(g => [g.z, g.x]));
     } catch (err) { console.error(err); return; }
 
     if (online && net && frames.length) {
+        if (frames[0].picks?.length) net.sendPicks(frames[0].picks);
         sendTimer += dt;
         if (sendTimer > 0.1) { sendTimer = 0; net.sendFrame(frames[0], frames[0].finishTime); }
     }
-    const remote = online && net ? net.ghosts() : [];
     frames.forEach((f, i) => {
         const c = canvases[i];
         if (!c) return;
@@ -505,7 +506,7 @@ export async function connect(code, name) {
     online = true;
 }
 export function setName(name) { net?.setName(name); }
-export function netStart(seed) { return net ? net.start(seed) : 0; }
+export function netStart(seed, settings) { return net ? net.start(seed, settings) : 0; }
 export function leave() { online = false; net?.leave(); }
 
 export function dispose() {

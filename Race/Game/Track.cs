@@ -14,9 +14,12 @@ public sealed class Track
     private double _rowNext = 3;
     private int _nextId;
 
-    public Track(int seed)
+    private readonly RaceSettings _settings;
+
+    public Track(int seed, RaceSettings? settings = null)
     {
         Seed = seed;
+        _settings = settings ?? new RaceSettings();
         _curveRng = new Random(seed);
         _rowRng = new Random(seed ^ 0x5eed);
         _segments.Add((0, 6, 0));
@@ -41,7 +44,7 @@ public sealed class Track
         }
         var (start, len, curve) = _segments[lo];
         var p = z - start;
-        return curve * Math.Min(1, Math.Min(p, len - p) / 2.5);
+        return curve * _settings.Curves * Math.Min(1, Math.Min(p, len - p) / 2.5);
     }
 
     private void AddSegment()
@@ -59,18 +62,23 @@ public sealed class Track
         {
             var z = _rowNext;
             var free = Enumerable.Range(0, Lanes).ToList();
-            int count = _rowRng.NextDouble() < 0.25 ? 2 : 1;
+            var traffic = _settings.Traffic;
+            int count = _rowRng.NextDouble() < 0.25 * traffic * traffic ? 2 : 1;
             for (int i = 0; i < count; i++)
             {
                 var lane = free[_rowRng.Next(free.Count)];
                 free.Remove(lane);
                 cars.Add(new TrafficCar { Id = _nextId++, Lane = lane, Z0 = z, Color = _rowRng.Next(6) });
             }
-            if (_rowRng.NextDouble() < 0.35)
-                coins.Add(new Coin { Id = _nextId++, X = LaneX(free[_rowRng.Next(free.Count)]), Z = z + 0.3 });
-            else if (_rowRng.NextDouble() < 0.16)
-                powerUps.Add(new PowerUp { Id = _nextId++, X = LaneX(free[_rowRng.Next(free.Count)]), Z = z + 0.3, Kind = (PowerUpKind)_rowRng.Next(7) });
-            _rowNext += Math.Max(0.45, 1.1 - z / 200) * (0.8 + _rowRng.NextDouble() * 0.4);
+            var coinRoll = _rowRng.NextDouble();
+            var puRoll = _rowRng.NextDouble();
+            var kind = (PowerUpKind)_rowRng.Next(7);
+            var spot = free[_rowRng.Next(free.Count)];
+            if (coinRoll < 0.35 * _settings.Coins)
+                coins.Add(new Coin { Id = _nextId++, X = LaneX(spot), Z = z + 0.3 });
+            else if (puRoll < 0.16 * _settings.PowerUps)
+                powerUps.Add(new PowerUp { Id = _nextId++, X = LaneX(spot), Z = z + 0.3, Kind = kind });
+            _rowNext += Math.Max(0.45, 1.1 - z / 200) * (0.8 + _rowRng.NextDouble() * 0.4) / traffic;
         }
     }
 }

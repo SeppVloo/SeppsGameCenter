@@ -1,4 +1,4 @@
-@page "/race"
+﻿@page "/race"
 @using Race.Game
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -65,15 +65,40 @@
     <details class="race-help">
         <summary>❓ Hoe speel je?</summary>
         <ul>
-            <li>Kies een modus: <b>🚗 Solo</b> (eindeloos, zo ver mogelijk), <b>👥 Samen</b> (2 spelers op dit apparaat) of <b>🌐 Online</b> (tot 4 spelers met een kamercode). Samen en online is een race van <b>3 km</b>: wie het eerst bij de finish is wint.</li>
+            <li>Kies een modus: <b>🚗 Solo</b> (eindeloos, zo ver mogelijk), <b>👥 Samen</b> (2 spelers op dit apparaat) of <b>🌐 Online</b> (tot 4 spelers met een kamercode). Samen en online is een race (standaard <b>3 km</b>, in te stellen): wie het eerst bij de finish is wint.</li>
             <li>@(_touch ? "Houd je vinger op de weg; je auto stuurt naar je vinger toe. Vinger hoog op het scherm (boven de groene lijn) = gas, laag (onder de rode lijn) = remmen. Samen: ieder stuurt op zijn eigen helft." : "Stuur met ←/→ of A/D, gas met ↑/W, remmen met ↓/S. Samen: speler 1 A/D/W/S, speler 2 de pijltjes.")</li>
             <li>Wissel tussen <b>🗺️ bovenaanzicht</b> en <b>🎥 cockpit</b> (in de auto) met de knop@(_touch ? "" : " of de V-toets").</li>
             <li>In <b>bochten</b> word je naar buiten geduwd, harder naarmate je sneller gaat: stuur tegen! Naast de weg (in het gras) ga je veel langzamer.</li>
-            <li>Ontwijk de andere auto's (tussen twee auto's door over de lijn past niet!). Je hebt <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden. Andere spelers zijn spookauto's: daar bots je niet tegen.</li>
+            <li>Ontwijk de andere auto's (tussen twee auto's door over de lijn past niet!). Je hebt standaard <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden. Tegen andere spelers bots je ook, maar dan duw je elkaar alleen opzij: dat kost geen leven.</li>
+            <li>Een power-up is voor wie hem <b>het eerst</b> pakt; daarna is hij voor de anderen weg.</li>
+            <li>Bij <b>⚙️ Instellingen</b> kies je snelheid, hoeveel verkeer, baanwissels, bochten, munten, power-ups, levens, racelengte en of spelers botsen. Of kies snel Makkelijk/Normaal/Moeilijk.</li>
             <li>Elke meter is 1 punt, elke munt 🪙 is <b>@RaceEngine.CoinPoints punten</b>. In solo wordt je beste score bewaard.</li>
             <li>Power-ups: <b>👻 spook</b> (@RaceEngine.GhostSeconds s door auto's heen), <b>⚡ turbo</b> (@RaceEngine.BoostSeconds s sneller), <b>❤️ extra leven</b> (max. @RaceEngine.MaxLives), <b>🧲 magneet</b> (@RaceEngine.MagnetSeconds s munten aantrekken), <b>🛡️ schild</b> (vangt 1 botsing op), <b>✖️2 dubbele munten</b> (@RaceEngine.DoubleSeconds s) en <b>🐜 mini</b> (@RaceEngine.ShrinkSeconds s kleiner, makkelijker ertussendoor).</li>
             <li>Let op het <b>knipperlicht</b>: andere auto's die knipperen wisselen zo van baan!</li>
         </ul>
+    </details>
+
+    <details class="race-help race-settings">
+        <summary>⚙️ Instellingen</summary>
+        <fieldset disabled="@Busy" @onchange="SaveSettings">
+            <div class="race-row">
+                <button class="race-btn ghost" @onclick="() => Preset(RaceSettings.Easy())">🐢 Makkelijk</button>
+                <button class="race-btn ghost" @onclick="() => Preset(RaceSettings.Normal())">🚗 Normaal</button>
+                <button class="race-btn ghost" @onclick="() => Preset(RaceSettings.Hard())">🔥 Moeilijk</button>
+            </div>
+            <label>Beginsnelheid <input type="range" min="0.5" max="2" step="0.1" @bind="_settings.StartSpeed" @bind:event="oninput" /> <b>@((int)(_settings.StartSpeed * 60)) km/u</b></label>
+            <label>Topsnelheid <input type="range" min="0.5" max="3.5" step="0.1" @bind="_settings.MaxSpeed" @bind:event="oninput" /> <b>@((int)(_settings.MaxSpeed * 60)) km/u</b></label>
+            <label>Sneller worden <input type="range" min="0" max="0.06" step="0.005" @bind="_settings.SpeedUp" @bind:event="oninput" /> <b>@(_settings.SpeedUp == 0 ? "uit" : $"{_settings.SpeedUp * 3600:0} km/u per min")</b></label>
+            <label>Verkeer <input type="range" min="0.2" max="2" step="0.05" @bind="_settings.Traffic" @bind:event="oninput" /> <b>@((int)(_settings.Traffic * 100))%</b></label>
+            <label>Baanwissels <input type="range" min="0" max="90" step="5" @bind="_settings.LaneChange" @bind:event="oninput" /> <b>@_settings.LaneChange%</b></label>
+            <label>Bochten <input type="range" min="0" max="2" step="0.1" @bind="_settings.Curves" @bind:event="oninput" /> <b>@((int)(_settings.Curves * 100))%</b></label>
+            <label>Munten <input type="range" min="0" max="2.5" step="0.1" @bind="_settings.Coins" @bind:event="oninput" /> <b>@((int)(_settings.Coins * 100))%</b></label>
+            <label>Power-ups <input type="range" min="0" max="4" step="0.1" @bind="_settings.PowerUps" @bind:event="oninput" /> <b>@((int)(_settings.PowerUps * 100))%</b></label>
+            <label>Levens <input type="range" min="1" max="9" step="1" @bind="_settings.Lives" @bind:event="oninput" /> <b>@_settings.Lives</b></label>
+            <label>Racelengte <input type="range" min="1" max="10" step="1" @bind="_settings.RaceKm" @bind:event="oninput" /> <b>@_settings.RaceKm km</b></label>
+            <label class="check"><input type="checkbox" @bind="_settings.PlayerCollision" /> Spelers botsen tegen elkaar</label>
+            <small>Online gelden de instellingen van wie op start drukt.</small>
+        </fieldset>
     </details>
 
     <div class="race-track @(_mode == RaceMode.Duo ? "duo" : "")">
@@ -94,7 +119,7 @@
                         <button class="race-btn" @onclick="StartGame">Start</button>
                         break;
                     case RaceMode.Duo:
-                        <p>Race van 3 km tegen elkaar op dit apparaat.</p>
+                        <p>Race van @_settings.RaceKm km tegen elkaar op dit apparaat.</p>
                         <button class="race-btn" @onclick="StartGame">Start</button>
                         break;
                     default:
@@ -138,7 +163,11 @@
     private const string BestKey = "race.best";
     private const string ViewKey = "race.view";
     private const string NameKey = "race.name";
+    private const string SettingsKey = "race.settings";
     private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+    private RaceSettings _settings = new();
+    private readonly HashSet<int> _claimed = [];
 
     private RaceMode _mode = RaceMode.Solo;
     private List<LocalPlayer> _players = [new("Jij", new RaceEngine())];
@@ -172,6 +201,8 @@
                 _best = int.TryParse(await _js.InvokeAsync<string?>("load", BestKey), out var b) ? b : 0;
                 _view = await _js.InvokeAsync<string?>("load", ViewKey) == "cockpit" ? "cockpit" : "top";
                 _name = await _js.InvokeAsync<string?>("load", NameKey) is { Length: > 0 } n ? n : _name;
+                try { if (await _js.InvokeAsync<string?>("load", SettingsKey) is { Length: > 0 } st) _settings = (System.Text.Json.JsonSerializer.Deserialize<RaceSettings>(st) ?? new()).Clamped(); }
+                catch (System.Text.Json.JsonException) { }
                 await _js.InvokeVoidAsync("setView", _view);
             }
             catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
@@ -197,15 +228,19 @@
     }
 
     [JSInvokable]
-    public RaceFrame[] Tick(double dt, double[] input)
+    public RaceFrame[] Tick(double dt, double[] input, double[]? remote = null)
     {
         var changed = false;
         var frames = new RaceFrame[_players.Count];
+        var pos = _players.Select(p => (p.Engine.Z, p.Engine.X, Active: p.Engine.Status == RaceStatus.Running)).ToList();
+        var net = new List<(double Z, double X)>();
+        for (int k = 0; remote is not null && k + 1 < remote.Length; k += 2) net.Add((remote[k], remote[k + 1]));
         for (int i = 0; i < _players.Count; i++)
         {
             var e = _players[i].Engine;
             var before = e.Status;
-            e.Tick(dt, i * 2 < input.Length ? input[i * 2] : 0, i * 2 + 1 < input.Length ? input[i * 2 + 1] : 0);
+            var others = pos.Where((p, j) => j != i && p.Active).Select(p => (p.Z, p.X)).Concat(net).ToList();
+            e.Tick(dt, i * 2 < input.Length ? input[i * 2] : 0, i * 2 + 1 < input.Length ? input[i * 2 + 1] : 0, others);
             if (e.Status != before)
             {
                 changed = true;
@@ -262,20 +297,23 @@
     {
         _newBest = false;
         var seed = Random.Shared.Next();
+        var s = _settings.Clamped();
+        _claimed.Clear();
+        foreach (var p in _players) p.Engine.Claimed = _mode == RaceMode.Solo ? null : _claimed;
         switch (_mode)
         {
             case RaceMode.Solo:
-                Me.Engine.Start(seed);
+                Me.Engine.Start(seed, settings: s);
                 break;
             case RaceMode.Duo:
-                _players[0].Engine.Start(seed, RaceEngine.RaceUnits, 1);
-                _players[1].Engine.Start(seed, RaceEngine.RaceUnits, 2);
+                _players[0].Engine.Start(seed, s.RaceUnits, 1, settings: s);
+                _players[1].Engine.Start(seed, s.RaceUnits, 2, settings: s);
                 break;
             case RaceMode.Online when _js is not null && _connected:
                 int lane = 1;
-                try { lane = await _js.InvokeAsync<int>("netStart", seed); }
+                try { lane = await _js.InvokeAsync<int>("netStart", seed, s); }
                 catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"Race start mislukt: {ex.Message}"); }
-                Me.Engine.Start(seed, RaceEngine.RaceUnits, lane);
+                Me.Engine.Start(seed, s.RaceUnits, lane, settings: s);
                 break;
         }
     }
@@ -316,13 +354,25 @@
     }
 
     [JSInvokable]
-    public void OnNetStart(int seed, int lane)
+    public void OnNetStart(int seed, int lane, RaceSettings? settings)
     {
         if (_mode != RaceMode.Online || Busy) return;
         _newBest = false;
-        Me.Engine.Start(seed, RaceEngine.RaceUnits, lane);
+        var s = (settings ?? _settings).Clamped();
+        _claimed.Clear();
+        Me.Engine.Claimed = _claimed;
+        Me.Engine.Start(seed, s.RaceUnits, lane, settings: s);
         StateHasChanged();
     }
+
+    [JSInvokable]
+    public void OnNetPicks(int[] ids)
+    {
+        foreach (var id in ids) _claimed.Add(id);
+    }
+
+    private Task Preset(RaceSettings s) { _settings = s; return SaveSettings(); }
+    private Task SaveSettings() => SafeJs("save", SettingsKey, System.Text.Json.JsonSerializer.Serialize(_settings));
 
     private IEnumerable<Standing> Standings()
     {

@@ -1,6 +1,6 @@
 // Online multiplayer voor Race via publieke MQTT-brokers (geen WebRTC nodig, werkt dus ook achter strenge
 // routers/firewalls en op 4G). Iedereen met dezelfde kamercode abonneert op hetzelfde topic. Elke speler stuurt
-// ~10x per seconde zijn positie; tegenstanders worden als "spookauto" getekend (geen botsingen), geen host nodig.
+// ~10x per seconde zijn positie; tegenstanders kun je opzij duwen (botsing lokaal), power-ups zijn voor wie het eerst is.
 // We verbinden met meerdere brokers tegelijk en sturen alles naar allemaal: valt er een uit, dan werkt het nog.
 import mqtt from "https://esm.sh/mqtt@5.10.1";
 
@@ -46,12 +46,13 @@ function onMessage(_t, buf) {
     }
     peers.set(m.id, p);
     if (isNew) { send({ t: "hello", name: myName }); push(); }
+    if (m.t === "pick" && Array.isArray(m.ids)) { dotnet?.invokeMethodAsync("OnNetPicks", m.ids.map(i => i | 0)); return; }
     if (m.t === "start") {
         const key = m.id + ":" + m.seed;
         if (key === lastStart) return; // hetzelfde bericht komt via meerdere brokers binnen
         lastStart = key;
         for (const q of peers.values()) { q.z = q.tz = 0; q.vz = 0; q.meters = 0; q.status = "Countdown"; q.ft = -1; }
-        dotnet?.invokeMethodAsync("OnNetStart", m.seed | 0, myLane());
+        dotnet?.invokeMethodAsync("OnNetStart", m.seed | 0, myLane(), m.settings ?? null);
     }
 }
 
@@ -80,10 +81,16 @@ function push() { dotnet?.invokeMethodAsync("OnPeers", list()); }
 export function setName(name) { myName = name; send({ t: "hello", name }); }
 
 /** Start de race voor iedereen in de kamer; geeft de eigen startbaan terug. */
-export function start(seed) {
+export function start(seed, settings) {
     for (const p of peers.values()) { p.z = p.tz = 0; p.vz = 0; p.meters = 0; p.status = "Countdown"; p.ft = -1; }
-    send({ t: "start", seed, name: myName });
+    send({ t: "start", seed, settings, name: myName });
     return myLane();
+}
+
+/** Meldt welke power-ups we gepakt hebben: die zijn dan voor de anderen weg. Twee keer voor de zekerheid. */
+export function sendPicks(ids) {
+    send({ t: "pick", ids });
+    setTimeout(() => send({ t: "pick", ids }), 300);
 }
 
 export function sendFrame(f, finishTime) {
