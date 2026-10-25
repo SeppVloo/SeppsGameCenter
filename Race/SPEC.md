@@ -25,7 +25,7 @@
 - **Bochten:** segmenten van 6–16 eenheden, recht of kromming 0,15–0,4 (zacht in/uit). In een bocht word je naar buiten geduwd: `kromming × snelheid² × 0,3` per seconde; tegensturen nodig.
 - Verkeer rijdt dezelfde kant op met een vaste snelheid per baan (0,45/0,55/0,65/0,75); per rij 1 of 2 auto's, rijen komen steeds dichter op elkaar. ~35% van de rijen heeft een munt in een vrije baan, anders 12% kans op een power-up.
 - **Baanwissels:** ~45% van de auto's wisselt naar een buurbaan (links of rechts, wat vrij is) zodra je ze over ~2 s inhaalt: eerst 1,3 s knipperlicht, dan in 0,9 s opschuiven. Alleen als de doelbaan vrij is. Deterministisch op auto-id (gelijk voor iedereen met dezelfde seed).
-- **Power-ups:** 👻 spook (5 s door andere auto's heen rijden), ⚡ turbo (4 s snelheid ×1,5), ❤️ extra leven (max 5).
+- **Power-ups** (16% kans per rij zonder munt, 7 soorten): 👻 spook (5 s door andere auto's heen rijden), ⚡ turbo (4 s snelheid x1,5), ❤️ extra leven (max 5), 🧲 magneet (8 s munten binnen 0,45 zijwaarts / 0,6 vooruit), 🛡️ schild (volgende botsing kost geen leven), ✖️2 dubbele munten (10 s), 🐜 mini (7 s kleinere auto en botsvlak).
 - Auto's zijn 0,16 breed; botsing als de afstand zijwaarts < 0,147 is (en < 0,176 in rijrichting). Op de lijn tussen twee auto's in naastgelegen banen door rijden kan dus niet.
 - 3 levens. Botsing: −1 leven, snelheid ×0,4, 2 seconden onkwetsbaar (knipperen). 0 levens: *Game over* / uit de race.
 - Score = meters + 50 per munt. Solo: beste score in localStorage `race.best`.
