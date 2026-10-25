@@ -1,148 +1,151 @@
 namespace Race.Game;
 
-public enum RaceStatus { Ready, Running, GameOver }
+public enum RaceStatus { Ready, Countdown, Running, Finished, GameOver }
 
 public sealed class TrafficCar
 {
-    public double X { get; set; }
-    public double Y { get; set; }
-    public double Speed { get; set; }
-    public int Color { get; set; }
+    public int Id { get; init; }
+    public int Lane { get; init; }
+    public double Z0 { get; init; }
+    public int Color { get; init; }
+    public double X => Track.LaneX(Lane);
+    public double Speed => Track.LaneSpeed(Lane);
+    public double ZAt(double time) => Z0 + Speed * time;
 }
 
 public sealed class Coin
 {
-    public double X { get; set; }
-    public double Y { get; set; }
+    public int Id { get; init; }
+    public double X { get; init; }
+    public double Z { get; init; }
 }
 
-/// <summary>Snapshot voor de tekencode (JS). Cars: x,y,kleur per auto; Coins: x,y per munt.</summary>
+/// <summary>
+/// Snapshot voor de tekencode (JS). Z = afgelegde afstand. Cars: dz,x,kleur per auto; Coins: dz,x per munt
+/// (dz = afstand t.o.v. de speler). Curves: kromming vanaf de speler in stappen van <see cref="RaceEngine.CurveStep"/>.
+/// </summary>
 public sealed record RaceFrame(
-    double PlayerX, double PlayerY, bool Blink, double RoadOffset,
-    double[] Cars, double[] Coins, int Score, int Lives, int Kmh, string Status);
+    double X, double Z, double Steer, bool Blink, double[] Cars, double[] Coins, double[] Curves,
+    double FinishDz, int Score, int Meters, int Lives, int Kmh, double Countdown, double FinishTime, string Status);
 
-/// <summary>Pure spellogica van de racegame. Wereld: weg loopt van x=0 tot 1, zicht van y=0 (boven) tot ViewH (onder).</summary>
+/// <summary>Pure spellogica van de racegame. Weg loopt van x=0 tot 1 (4 banen); z is de afstand langs de baan.</summary>
 public sealed class RaceEngine
 {
-    public const int Lanes = 4;
-    public const double ViewH = 1.6;
     public const double CarW = 0.13;
     public const double CarH = 0.22;
     public const double CoinR = 0.035;
     public const int StartLives = 3;
     public const int CoinPoints = 50;
-    public const double PlayerY = 1.3;
+    public const double MetersPerUnit = 20;
+    public const double RaceUnits = 150; // 3 km
+    public const double CurveStep = 0.3;
+    public const int CurveSamples = 100;
+    public const double Drift = 0.3;
+    private const double ViewBehind = 1.5;
 
-    private readonly Random _rng;
     private readonly List<TrafficCar> _cars = [];
     private readonly List<Coin> _coins = [];
-    private double _spawn;
+    private int _lastHit = -1;
+    private Track _track = new(1);
 
-    public RaceEngine(int? seed = null) { _rng = seed is null ? new Random() : new Random(seed.Value); Reset(); }
+    public RaceEngine() => Reset();
 
     public RaceStatus Status { get; private set; }
-    public double PlayerX { get; private set; }
+    public double X { get; private set; }
+    public double Z { get; private set; }
     public double Speed { get; private set; }
-    public double Distance { get; private set; }
     public double Time { get; private set; }
+    public double Countdown { get; private set; }
+    public double Steer { get; private set; }
     public int Lives { get; private set; }
     public int CoinCount { get; private set; }
     public double Invulnerable { get; private set; }
+    /// <summary>Afstand van de finish in baan-eenheden, of 0 voor eindeloos.</summary>
+    public double FinishZ { get; private set; }
+    public double? FinishTime { get; private set; }
     public IReadOnlyList<TrafficCar> Cars => _cars;
     public IReadOnlyList<Coin> Coins => _coins;
+    public Track Track => _track;
 
     public double BaseSpeed => Math.Min(1.0 + Time * 0.02, 2.6);
-    public int Meters => (int)(Distance * 20);
+    public bool OffRoad => X < 0 || X > 1;
+    public int Meters => (int)(Math.Min(Z, FinishZ > 0 ? FinishZ : double.MaxValue) * MetersPerUnit);
     public int Score => Meters + CoinCount * CoinPoints;
     public int Kmh => (int)(Speed * 60);
+    public bool Done => Status is RaceStatus.Finished or RaceStatus.GameOver;
 
     public void Reset()
     {
         _cars.Clear();
         _coins.Clear();
         Status = RaceStatus.Ready;
-        PlayerX = LaneX(1);
-        Speed = 0;
-        Distance = 0;
-        Time = 0;
+        X = Track.LaneX(1);
+        Z = Speed = Time = Countdown = Steer = Invulnerable = 0;
         Lives = StartLives;
         CoinCount = 0;
-        Invulnerable = 0;
-        _spawn = 0.4;
+        FinishTime = null;
+        _lastHit = -1;
     }
 
-    public void Start()
+    /// <param name="seed">Zelfde seed = zelfde baan (voor multiplayer).</param>
+    /// <param name="finishZ">0 = eindeloos, anders lengte van de race.</param>
+    /// <param name="lane">Startbaan (0-3).</param>
+    /// <param name="countdown">Seconden aftellen voor de start.</param>
+    public void Start(int seed, double finishZ = 0, int lane = 1, double countdown = 3)
     {
         Reset();
-        Status = RaceStatus.Running;
-        Speed = BaseSpeed * 0.6;
+        _track = new Track(seed);
+        FinishZ = finishZ;
+        X = Track.LaneX(Math.Clamp(lane, 0, Track.Lanes - 1));
+        Countdown = countdown;
+        Status = countdown > 0 ? RaceStatus.Countdown : RaceStatus.Running;
     }
-
-    public static double LaneX(int lane) => (lane + 0.5) / Lanes;
 
     /// <param name="dt">Seconden sinds vorige tick.</param>
     /// <param name="steer">-1 (links) tot 1 (rechts).</param>
     /// <param name="throttle">-1 (remmen) tot 1 (gas).</param>
     public void Tick(double dt, double steer, double throttle)
     {
-        if (Status != RaceStatus.Running) return;
         dt = Math.Clamp(dt, 0, 0.05);
-        steer = Math.Clamp(steer, -1, 1);
+        Steer += (Math.Clamp(steer, -1, 1) - Steer) * Math.Min(1, dt * 12);
+        if (Status == RaceStatus.Countdown)
+        {
+            Countdown -= dt;
+            if (Countdown <= 0) { Countdown = 0; Status = RaceStatus.Running; }
+            _track.Generate(Z + 32, _cars, _coins);
+            return;
+        }
+        if (Status != RaceStatus.Running) return;
         throttle = Math.Clamp(throttle, -1, 1);
 
         Time += dt;
-        var target = BaseSpeed * (1 + 0.5 * throttle);
+        var target = BaseSpeed * (1 + 0.5 * throttle) * (OffRoad ? 0.45 : 1);
         Speed += Math.Clamp(target - Speed, -2.5 * dt, 1.2 * dt);
-        Distance += Speed * dt;
+        Z += Speed * dt;
         Invulnerable = Math.Max(0, Invulnerable - dt);
 
-        PlayerX = Math.Clamp(PlayerX + steer * 1.3 * dt, CarW / 2, 1 - CarW / 2);
+        var curve = _track.Curve(Z);
+        X = Math.Clamp(X + (Steer * 1.3 - curve * Speed * Speed * Drift) * dt, -0.2, 1.2);
 
-        foreach (var c in _cars) c.Y += (Speed - c.Speed) * dt;
-        foreach (var c in _coins) c.Y += Speed * dt;
-        _cars.RemoveAll(c => c.Y > ViewH + CarH || c.Y < -1);
-        _coins.RemoveAll(c => c.Y > ViewH + CoinR);
-
-        _spawn -= Speed * dt;
-        if (_spawn <= 0) SpawnRow();
+        _track.Generate(Z + 32, _cars, _coins);
+        _cars.RemoveAll(c => c.ZAt(Time) < Z - ViewBehind);
+        _coins.RemoveAll(c => c.Z < Z - ViewBehind);
 
         CheckCollisions();
-    }
 
-    private void SpawnRow()
-    {
-        _spawn = (0.45 + _rng.NextDouble() * 0.45) / (1 + Time / 90);
-        _spawn = Math.Max(_spawn, 0.28);
-
-        var blocked = new bool[Lanes];
-        foreach (var c in _cars)
-            if (c.Y < 0.45) blocked[LaneOf(c.X)] = true;
-        var free = Enumerable.Range(0, Lanes).Where(l => !blocked[l]).ToList();
-        if (free.Count < 2) return; // altijd minstens één baan vrij laten
-
-        var lane = free[_rng.Next(free.Count)];
-        _cars.Add(new TrafficCar
+        if (Status == RaceStatus.Running && FinishZ > 0 && Z >= FinishZ)
         {
-            X = LaneX(lane),
-            Y = -CarH,
-            Speed = BaseSpeed * (0.35 + _rng.NextDouble() * 0.25),
-            Color = _rng.Next(6),
-        });
-
-        free.Remove(lane);
-        if (_rng.NextDouble() < 0.35)
-            _coins.Add(new Coin { X = LaneX(free[_rng.Next(free.Count)]), Y = -CarH });
+            FinishTime = Time;
+            Status = RaceStatus.Finished;
+        }
     }
-
-    private static int LaneOf(double x) => Math.Clamp((int)(x * Lanes), 0, Lanes - 1);
 
     private void CheckCollisions()
     {
-        const double shrink = 0.8;
         for (int i = _coins.Count - 1; i >= 0; i--)
         {
             var c = _coins[i];
-            if (Math.Abs(c.X - PlayerX) < CarW / 2 + CoinR && Math.Abs(c.Y - PlayerY) < CarH / 2 + CoinR)
+            if (Math.Abs(c.X - X) < CarW / 2 + CoinR && Math.Abs(c.Z - Z) < CarH / 2 + CoinR)
             {
                 CoinCount++;
                 _coins.RemoveAt(i);
@@ -150,12 +153,14 @@ public sealed class RaceEngine
         }
 
         if (Invulnerable > 0) return;
+        const double shrink = 0.8;
         foreach (var c in _cars)
         {
-            if (Math.Abs(c.X - PlayerX) < CarW * shrink && Math.Abs(c.Y - PlayerY) < CarH * shrink)
+            if (c.Id == _lastHit) continue;
+            if (Math.Abs(c.X - X) < CarW * shrink && Math.Abs(c.ZAt(Time) - Z) < CarH * shrink)
             {
+                _lastHit = c.Id;
                 Lives--;
-                _cars.Remove(c);
                 Speed *= 0.4;
                 if (Lives <= 0) Status = RaceStatus.GameOver;
                 else Invulnerable = 2;
@@ -169,14 +174,18 @@ public sealed class RaceEngine
         var cars = new double[_cars.Count * 3];
         for (int i = 0; i < _cars.Count; i++)
         {
-            cars[i * 3] = _cars[i].X; cars[i * 3 + 1] = _cars[i].Y; cars[i * 3 + 2] = _cars[i].Color;
+            cars[i * 3] = _cars[i].ZAt(Time) - Z; cars[i * 3 + 1] = _cars[i].X; cars[i * 3 + 2] = _cars[i].Color;
         }
         var coins = new double[_coins.Count * 2];
         for (int i = 0; i < _coins.Count; i++)
         {
-            coins[i * 2] = _coins[i].X; coins[i * 2 + 1] = _coins[i].Y;
+            coins[i * 2] = _coins[i].Z - Z; coins[i * 2 + 1] = _coins[i].X;
         }
+        var curves = new double[CurveSamples];
+        for (int i = 0; i < CurveSamples; i++) curves[i] = _track.Curve(Z + i * CurveStep);
+
         var blink = Invulnerable > 0 && (int)(Invulnerable * 8) % 2 == 0;
-        return new RaceFrame(PlayerX, PlayerY, blink, Distance % 1.0, cars, coins, Score, Lives, Kmh, Status.ToString());
+        var finishDz = FinishZ > 0 ? FinishZ - Z : -1;
+        return new RaceFrame(X, Z, Steer, blink, cars, coins, curves, finishDz, Score, Meters, Lives, Kmh, Countdown, FinishTime ?? -1, Status.ToString());
     }
 }

@@ -5,120 +5,336 @@
 
 <PageTitle>Race – Sepps GameCenter</PageTitle>
 
-<div class="race">
+<div class="race @(_mode == RaceMode.Duo ? "wide" : "")">
     <div class="race-head">
         <a class="race-back" href="./">← GameCenter</a>
         <h1 class="race-logo">RACE</h1>
         <div class="race-scores">
-            <div class="race-score"><span>Score</span><b>@_engine.Score</b></div>
-            <div class="race-score"><span>Beste</span><b>@_best</b></div>
+            @if (_mode == RaceMode.Solo)
+            {
+                <div class="race-score"><span>Score</span><b>@Me.Engine.Score</b></div>
+                <div class="race-score"><span>Beste</span><b>@_best</b></div>
+            }
+            else
+            {
+                @foreach (var p in _players)
+                {
+                    <div class="race-score"><span>@p.Name</span><b>@p.Engine.Meters m</b></div>
+                }
+            }
         </div>
     </div>
 
     <div class="race-bar">
-        <span class="race-hint">@(_touch ? "Sleep je vinger om te sturen" : "←/→ of A/D sturen · ↑/W gas · ↓/S remmen")</span>
-        <button class="race-btn" @onclick="StartGame">@(_engine.Status == RaceStatus.Running ? "Opnieuw" : "Start")</button>
+        <div class="race-seg">
+            <button class="@(_mode == RaceMode.Solo ? "on" : "")" disabled="@Busy" @onclick="() => SetMode(RaceMode.Solo)">🚗 Solo</button>
+            <button class="@(_mode == RaceMode.Duo ? "on" : "")" disabled="@Busy" @onclick="() => SetMode(RaceMode.Duo)">👥 Samen</button>
+            <button class="@(_mode == RaceMode.Online ? "on" : "")" disabled="@Busy" @onclick="() => SetMode(RaceMode.Online)">🌐 Online</button>
+        </div>
+        <button class="race-btn ghost" @onclick="ToggleView">@(_view == "cockpit" ? "🗺️ Bovenaanzicht" : "🎥 Cockpit")</button>
     </div>
+    <span class="race-hint">@Hint</span>
+
+    @if (_mode == RaceMode.Online)
+    {
+        <div class="race-online">
+            @if (!_connected)
+            {
+                <label>Naam <input maxlength="16" @bind="_name" /></label>
+                <label>Kamercode <input maxlength="6" class="code" @bind="_code" /></label>
+                <div class="race-row">
+                    <button class="race-btn" disabled="@(string.IsNullOrWhiteSpace(_code))" @onclick="Connect">Verbinden</button>
+                    <button class="race-btn ghost" @onclick="NewCode">Nieuwe code</button>
+                </div>
+                <small>Deel de kamercode met je vrienden; wie dezelfde code invult rijdt mee (max. 4).</small>
+            }
+            else
+            {
+                <div class="race-row spread">
+                    <span>Kamer <b class="code">@_code</b> · @(_peers.Count + 1) speler(s)</span>
+                    <button class="race-btn ghost" disabled="@Busy" @onclick="Leave">Verlaten</button>
+                </div>
+                <div class="race-chips">
+                    <span class="chip me">@_name (jij)</span>
+                    @foreach (var p in _peers) { <span class="chip">@p.Name</span> }
+                </div>
+            }
+        </div>
+    }
 
     <details class="race-help">
         <summary>❓ Hoe speel je?</summary>
         <ul>
-            <li>Druk op <b>Start</b>. Je auto rijdt vanzelf over de snelweg en gaat steeds sneller.</li>
-            <li>@(_touch ? "Sleep je vinger over de weg; je auto stuurt naar je vinger toe." : "Stuur met ←/→ of A/D. Geef extra gas met ↑/W en rem met ↓/S.")</li>
-            <li>Ontwijk de andere auto's. Je hebt <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden.</li>
-            <li>Elke meter is 1 punt, elke munt 🪙 is <b>@RaceEngine.CoinPoints punten</b>. Je beste score wordt bewaard.</li>
-            <li><b>Tip:</b> er is altijd minstens één baan vrij. Sneller rijden = sneller punten, maar ook sneller botsen!</li>
+            <li>Kies een modus: <b>🚗 Solo</b> (eindeloos, zo ver mogelijk), <b>👥 Samen</b> (2 spelers op dit apparaat) of <b>🌐 Online</b> (tot 4 spelers met een kamercode). Samen en online is een race van <b>3 km</b>: wie het eerst bij de finish is wint.</li>
+            <li>@(_touch ? "Houd je vinger op de weg; je auto stuurt naar je vinger toe. Samen: ieder stuurt op zijn eigen helft." : "Stuur met ←/→ of A/D, gas met ↑/W, remmen met ↓/S. Samen: speler 1 A/D/W/S, speler 2 de pijltjes.")</li>
+            <li>Wissel tussen <b>🗺️ bovenaanzicht</b> en <b>🎥 cockpit</b> (in de auto) met de knop@(_touch ? "" : " of de V-toets").</li>
+            <li>In <b>bochten</b> word je naar buiten geduwd, harder naarmate je sneller gaat: stuur tegen! Naast de weg (in het gras) ga je veel langzamer.</li>
+            <li>Ontwijk de andere auto's. Je hebt <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden. Andere spelers zijn spookauto's: daar bots je niet tegen.</li>
+            <li>Elke meter is 1 punt, elke munt 🪙 is <b>@RaceEngine.CoinPoints punten</b>. In solo wordt je beste score bewaard.</li>
         </ul>
     </details>
 
-    <div class="race-track">
-        <canvas class="race-canvas" @ref="_canvas" width="400" height="640"></canvas>
+    <div class="race-track @(_mode == RaceMode.Duo ? "duo" : "")">
+        <canvas class="race-canvas" @ref="_canvas1" width="400" height="640"></canvas>
+        @if (_mode == RaceMode.Duo)
+        {
+            <canvas class="race-canvas" @ref="_canvas2" width="400" height="640"></canvas>
+        }
 
-        @if (_engine.Status == RaceStatus.Ready)
+        @if (_players.All(p => p.Engine.Status == RaceStatus.Ready))
         {
             <div class="race-overlay">
                 <h2>🏎️ Klaar?</h2>
-                <p>Ontwijk het verkeer en pak de munten.</p>
-                <button class="race-btn" @onclick="StartGame">Start</button>
+                @switch (_mode)
+                {
+                    case RaceMode.Solo:
+                        <p>Ontwijk het verkeer, pak de munten en rijd zo ver mogelijk.</p>
+                        <button class="race-btn" @onclick="StartGame">Start</button>
+                        break;
+                    case RaceMode.Duo:
+                        <p>Race van 3 km tegen elkaar op dit apparaat.</p>
+                        <button class="race-btn" @onclick="StartGame">Start</button>
+                        break;
+                    default:
+                        <p>@(_connected ? "Iedereen in de kamer start tegelijk." : "Maak eerst verbinding met een kamercode.")</p>
+                        <button class="race-btn" disabled="@(!_connected)" @onclick="StartGame">Start race voor iedereen</button>
+                        break;
+                }
             </div>
         }
-        else if (_engine.Status == RaceStatus.GameOver)
+        else if (_mode == RaceMode.Solo && Me.Engine.Status == RaceStatus.GameOver)
         {
             <div class="race-overlay">
                 <h2>💥 Game over</h2>
-                <p>@_engine.Meters m · @_engine.CoinCount munten · score @_engine.Score</p>
+                <p>@Me.Engine.Meters m · @Me.Engine.CoinCount munten · score @Me.Engine.Score</p>
                 @if (_newBest) { <p class="race-best">🏆 Nieuwe beste score!</p> }
                 <button class="race-btn" @onclick="StartGame">Opnieuw</button>
+            </div>
+        }
+        else if (_mode != RaceMode.Solo && _players.All(p => p.Engine.Done))
+        {
+            <div class="race-overlay">
+                <h2>🏁 Uitslag</h2>
+                <ol class="race-results">
+                    @foreach (var s in Standings())
+                    {
+                        <li class="@(s.Local ? "me" : "")"><b>@s.Name</b> <span>@s.Result</span></li>
+                    }
+                </ol>
+                <button class="race-btn" disabled="@(_mode == RaceMode.Online && !_connected)" @onclick="StartGame">Nog een race</button>
             </div>
         }
     </div>
 </div>
 
 @code {
+    private enum RaceMode { Solo, Duo, Online }
+    private sealed record LocalPlayer(string Name, RaceEngine Engine);
+    public sealed record NetPeer(string Id, string Name, int Meters, int Lives, string Status, double FinishTime);
+    private sealed record Standing(string Name, string Result, bool Local, int Order, double Key);
+
     private const string BestKey = "race.best";
-    private readonly RaceEngine _engine = new();
-    private ElementReference _canvas;
+    private const string ViewKey = "race.view";
+    private const string NameKey = "race.name";
+    private const string CodeChars = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+    private RaceMode _mode = RaceMode.Solo;
+    private List<LocalPlayer> _players = [new("Jij", new RaceEngine())];
+    private List<NetPeer> _peers = [];
+    private ElementReference _canvas1, _canvas2;
     private DotNetObjectReference<RacePage>? _self;
     private IJSObjectReference? _js;
     private int _best;
-    private bool _touch;
-    private bool _newBest;
-    private int _shownScore;
+    private bool _touch, _newBest, _connected, _canvasDirty = true;
+    private string _view = "top";
+    private string _name = "Speler";
+    private string _code = "";
+    private double _hudTimer;
+
+    private LocalPlayer Me => _players[0];
+    private bool Busy => _players.Any(p => p.Engine.Status is RaceStatus.Countdown or RaceStatus.Running);
+    private string Hint => _touch
+        ? (_mode == RaceMode.Duo ? "Ieder stuurt met een vinger op zijn eigen weg" : "Sleep je vinger om te sturen")
+        : (_mode == RaceMode.Duo ? "Speler 1: A/D/W/S · Speler 2: pijltjes · V = camera" : "←/→ of A/D sturen · ↑/W gas · ↓/S remmen · V = camera");
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender) return;
+        if (firstRender)
+        {
+            try
+            {
+                _js = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Race/race.js");
+                _self = DotNetObjectReference.Create(this);
+                await _js.InvokeVoidAsync("init", _self);
+                _touch = await JS.InvokeAsync<bool>("eval", "matchMedia('(pointer: coarse)').matches");
+                _best = int.TryParse(await _js.InvokeAsync<string?>("load", BestKey), out var b) ? b : 0;
+                _view = await _js.InvokeAsync<string?>("load", ViewKey) == "cockpit" ? "cockpit" : "top";
+                _name = await _js.InvokeAsync<string?>("load", NameKey) is { Length: > 0 } n ? n : _name;
+                await _js.InvokeVoidAsync("setView", _view);
+            }
+            catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+            {
+                Console.WriteLine($"Race JS init mislukt: {ex.Message}");
+            }
+            StateHasChanged();
+        }
+        if (_canvasDirty && _js is not null)
+        {
+            _canvasDirty = false;
+            var canvases = _mode == RaceMode.Duo ? new[] { _canvas1, _canvas2 } : new[] { _canvas1 };
+            await SafeJs("setCanvases", canvases);
+            await SafeJs("setPlayers", _players.Select(p => p.Name).ToArray());
+        }
+    }
+
+    private async Task SafeJs(string fn, params object?[] args)
+    {
+        if (_js is null) return;
+        try { await _js.InvokeVoidAsync(fn, args); }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"Race {fn} mislukt: {ex.Message}"); }
+    }
+
+    [JSInvokable]
+    public RaceFrame[] Tick(double dt, double[] input)
+    {
+        var changed = false;
+        var frames = new RaceFrame[_players.Count];
+        for (int i = 0; i < _players.Count; i++)
+        {
+            var e = _players[i].Engine;
+            var before = e.Status;
+            e.Tick(dt, i * 2 < input.Length ? input[i * 2] : 0, i * 2 + 1 < input.Length ? input[i * 2 + 1] : 0);
+            if (e.Status != before)
+            {
+                changed = true;
+                if (_mode == RaceMode.Solo && e.Status == RaceStatus.GameOver) _ = SaveBestAsync();
+            }
+            frames[i] = e.Frame();
+        }
+        _hudTimer += dt;
+        if (changed || (Busy && _hudTimer > 0.25))
+        {
+            _hudTimer = 0;
+            StateHasChanged();
+        }
+        return frames;
+    }
+
+    private async Task SaveBestAsync()
+    {
+        _newBest = Me.Engine.Score > _best;
+        if (!_newBest) return;
+        _best = Me.Engine.Score;
+        await SafeJs("save", BestKey, _best.ToString());
+        StateHasChanged();
+    }
+
+    private void SetMode(RaceMode mode)
+    {
+        if (mode == _mode || Busy) return;
+        if (_mode == RaceMode.Online) _ = Leave();
+        _mode = mode;
+        _players = mode == RaceMode.Duo
+            ? [new("Speler 1", new RaceEngine()), new("Speler 2", new RaceEngine())]
+            : [new(mode == RaceMode.Online ? _name : "Jij", new RaceEngine())];
+        _canvasDirty = true;
+    }
+
+    private async Task ToggleViewAsync()
+    {
+        _view = _view == "cockpit" ? "top" : "cockpit";
+        await SafeJs("setView", _view);
+        await SafeJs("save", ViewKey, _view);
+    }
+
+    private Task ToggleView() => ToggleViewAsync();
+
+    [JSInvokable("ToggleView")]
+    public async Task ToggleViewFromKey()
+    {
+        await ToggleViewAsync();
+        StateHasChanged();
+    }
+
+    private async Task StartGame()
+    {
+        _newBest = false;
+        var seed = Random.Shared.Next();
+        switch (_mode)
+        {
+            case RaceMode.Solo:
+                Me.Engine.Start(seed);
+                break;
+            case RaceMode.Duo:
+                _players[0].Engine.Start(seed, RaceEngine.RaceUnits, 1);
+                _players[1].Engine.Start(seed, RaceEngine.RaceUnits, 2);
+                break;
+            case RaceMode.Online when _js is not null && _connected:
+                int lane = 1;
+                try { lane = await _js.InvokeAsync<int>("netStart", seed); }
+                catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"Race start mislukt: {ex.Message}"); }
+                Me.Engine.Start(seed, RaceEngine.RaceUnits, lane);
+                break;
+        }
+    }
+
+    private void NewCode() => _code = new string(Enumerable.Range(0, 4).Select(_ => CodeChars[Random.Shared.Next(CodeChars.Length)]).ToArray());
+
+    private async Task Connect()
+    {
+        _code = _code.Trim().ToUpperInvariant();
+        _name = string.IsNullOrWhiteSpace(_name) ? "Speler" : _name.Trim();
+        if (_js is null || _code.Length == 0) return;
         try
         {
-            _js = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/Race/race.js");
-            _self = DotNetObjectReference.Create(this);
-            await _js.InvokeVoidAsync("init", _self, _canvas);
-            _touch = await JS.InvokeAsync<bool>("eval", "matchMedia('(pointer: coarse)').matches");
-            _best = int.TryParse(await _js.InvokeAsync<string?>("load", BestKey), out var b) ? b : 0;
+            await _js.InvokeVoidAsync("connect", _code, _name);
+            _connected = true;
+            _players = [new(_name, new RaceEngine())];
+            _canvasDirty = true;
         }
         catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
         {
-            Console.WriteLine($"Race JS init mislukt: {ex.Message}");
+            Console.WriteLine($"Race verbinden mislukt: {ex.Message}");
         }
+        await SafeJs("save", NameKey, _name);
+    }
+
+    private async Task Leave()
+    {
+        _connected = false;
+        _peers = [];
+        await SafeJs("leave");
+    }
+
+    [JSInvokable]
+    public void OnPeers(List<NetPeer> peers)
+    {
+        _peers = peers;
         StateHasChanged();
     }
 
     [JSInvokable]
-    public RaceFrame Tick(double dt, double steer, double throttle)
+    public void OnNetStart(int seed, int lane)
     {
-        var before = _engine.Status;
-        _engine.Tick(dt, steer, throttle);
-        if (_engine.Status == RaceStatus.GameOver && before != RaceStatus.GameOver)
-            _ = GameOverAsync();
-        else if (_engine.Score / 10 != _shownScore / 10)
-        {
-            _shownScore = _engine.Score;
-            StateHasChanged();
-        }
-        return _engine.Frame();
-    }
-
-    private async Task GameOverAsync()
-    {
-        _newBest = _engine.Score > _best;
-        if (_newBest)
-        {
-            _best = _engine.Score;
-            if (_js is not null)
-            {
-                try { await _js.InvokeVoidAsync("save", BestKey, _best.ToString()); }
-                catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException) { Console.WriteLine($"Race opslaan mislukt: {ex.Message}"); }
-            }
-        }
+        if (_mode != RaceMode.Online || Busy) return;
+        _newBest = false;
+        Me.Engine.Start(seed, RaceEngine.RaceUnits, lane);
         StateHasChanged();
     }
 
-    private void StartGame()
+    private IEnumerable<Standing> Standings()
     {
-        _newBest = false;
-        _shownScore = 0;
-        _engine.Start();
+        var all = _players.Select(p => Make(p.Name, p.Engine.Status.ToString(), p.Engine.FinishTime ?? -1, p.Engine.Meters, true))
+            .Concat(_mode == RaceMode.Online ? _peers.Select(p => Make(p.Name, p.Status, p.FinishTime, p.Meters, false)) : []);
+        return all.OrderBy(s => s.Order).ThenBy(s => s.Key);
     }
+
+    private static Standing Make(string name, string status, double finishTime, int meters, bool local) => status switch
+    {
+        nameof(RaceStatus.Finished) => new(name, $"🏁 {TimeSpan.FromSeconds(finishTime):m\\:ss\\.f}", local, 0, finishTime),
+        nameof(RaceStatus.GameOver) => new(name, $"💥 {meters} m", local, 2, -meters),
+        _ => new(name, $"🚗 rijdt nog ({meters} m)", local, 1, -meters),
+    };
 
     public async ValueTask DisposeAsync()
     {
