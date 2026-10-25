@@ -1,4 +1,4 @@
-@page "/race"
+﻿@page "/race"
 @using Race.Game
 @implements IAsyncDisposable
 @inject IJSRuntime JS
@@ -69,7 +69,7 @@
             <li>@(_touch ? "Houd je vinger op de weg; je auto stuurt naar je vinger toe. Samen: ieder stuurt op zijn eigen helft." : "Stuur met ←/→ of A/D, gas met ↑/W, remmen met ↓/S. Samen: speler 1 A/D/W/S, speler 2 de pijltjes.")</li>
             <li>Wissel tussen <b>🗺️ bovenaanzicht</b> en <b>🎥 cockpit</b> (in de auto) met de knop@(_touch ? "" : " of de V-toets").</li>
             <li>In <b>bochten</b> word je naar buiten geduwd, harder naarmate je sneller gaat: stuur tegen! Naast de weg (in het gras) ga je veel langzamer.</li>
-            <li>Ontwijk de andere auto's. Je hebt <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden. Andere spelers zijn spookauto's: daar bots je niet tegen.</li>
+            <li>Ontwijk de andere auto's (tussen twee auto's door over de lijn past niet!). Je hebt <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden. Andere spelers zijn spookauto's: daar bots je niet tegen.</li>
             <li>Elke meter is 1 punt, elke munt 🪙 is <b>@RaceEngine.CoinPoints punten</b>. In solo wordt je beste score bewaard.</li>
         </ul>
     </details>

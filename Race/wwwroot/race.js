@@ -1,4 +1,4 @@
-// Race: input, game-loop (requestAnimationFrame), tekenen (bovenaanzicht en cockpit) en localStorage.
+﻿// Race: input, game-loop (requestAnimationFrame), tekenen (bovenaanzicht en cockpit) en localStorage.
 // Alle spellogica zit in C# (RaceEngine); Tick wordt elk frame synchroon aangeroepen.
 let dotnet = null, raf = 0, last = 0, view = "top", names = [], online = false, net = null, sendTimer = 0;
 let canvases = [], frames = [];
@@ -7,7 +7,7 @@ const pointers = new Map(); // canvas-index -> { id, x }
 const skies = new Map();    // canvas-index -> horizon-verschuiving
 const COLORS = ["#f472b6", "#a78bfa", "#fb923c", "#4ade80", "#facc15", "#60a5fa"];
 const PLAYER_COLORS = ["#22d3ee", "#f97316", "#a3e635", "#e879f9"];
-const CAR_W = 0.13, CAR_H = 0.22, COIN_R = 0.035, LANES = 4, CURVE_STEP = 0.3, COCKPIT_CURVE = 0.06;
+const CAR_W = 0.16, CAR_H = 0.22,
 const GAME_KEYS = ["arrowleft", "arrowright", "arrowup", "arrowdown", "a", "d", "w", "s"];
 
 const busy = () => frames.some(f => f.status === "Running" || f.status === "Countdown");
@@ -92,12 +92,17 @@ function offsets(curves) {
     let slope = 0;
     for (let i = 0; i < curves.length; i++) { slope += curves[i] * CURVE_STEP; o.push(o[i] + slope * CURVE_STEP); }
     const c0 = curves[0] ?? 0;
-    return d => {
+    const off = d => {
         if (d <= 0) return 0.5 * c0 * d * d;
         const fi = d / CURVE_STEP, i = Math.floor(fi);
         if (i >= o.length - 1) return o[o.length - 1];
         return o[i] + (o[i + 1] - o[i]) * (fi - i);
     };
+    /** Richting (helling) van de weg op afstand d. */
+    off.slope = d => (off(d + 0.02) - off(d - 0.02)) / 0.04;
+    /** Kromming op afstand d. */
+    off.curve = d => curves[Math.max(0, Math.min(curves.length - 1, Math.round(d / CURVE_STEP)))] ?? 0;
+    return off;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -115,8 +120,23 @@ function quad(ctx, x1, y1, w1, x2, y2, w2) {
 
 // ---------- Bovenaanzicht ----------
 
-function drawCarTop(ctx, cx, cy, k, color, glow) {
-    const w = CAR_W * k, h = CAR_H * k, px = cx - w / 2, py = cy - h / 2;
+/** angle = draaiing van de auto (radialen, + = rechtsom), wheel = stuurhoek van de voorwielen. */
+function drawCarTop(ctx, cx, cy, k, color, glow, angle = 0, wheel = 0) {
+    const w = CAR_W * k, h = CAR_H * k, px = -w / 2, py = -h / 2;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle);
+    const ww = w * 0.12, wh = h * 0.2;
+    ctx.fillStyle = "#111";
+    for (const [oy, a] of [[0.12, wheel], [0.68, 0]]) {
+        for (const sx of [px, px + w]) {
+            ctx.save();
+            ctx.translate(sx, py + h * oy + wh / 2);
+            ctx.rotate(a);
+            ctx.fillRect(-ww / 2, -wh / 2, ww, wh);
+            ctx.restore();
+        }
+    }
     ctx.fillStyle = color;
     if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 16; }
     roundRect(ctx, px, py, w, h, w * 0.25);
@@ -124,12 +144,7 @@ function drawCarTop(ctx, cx, cy, k, color, glow) {
     ctx.fillStyle = "rgba(11,16,38,.75)";
     roundRect(ctx, px + w * 0.15, py + h * 0.22, w * 0.7, h * 0.16, 3);
     roundRect(ctx, px + w * 0.15, py + h * 0.66, w * 0.7, h * 0.1, 3);
-    ctx.fillStyle = "#111";
-    const ww = w * 0.08, wh = h * 0.16;
-    for (const oy of [0.15, 0.69]) {
-        ctx.fillRect(px - ww, py + h * oy, ww, wh);
-        ctx.fillRect(px + w, py + h * oy, ww, wh);
-    }
+    ctx.restore();
 }
 
 function drawTop(ctx, W, H, f, ghosts, myColor) {
@@ -175,19 +190,20 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
 
     for (let i = 0; i < f.cars.length; i += 3) {
         const dz = f.cars[i];
-        drawCarTop(ctx, sx(f.cars[i + 1], dz), sy(dz), k, COLORS[f.cars[i + 2] % COLORS.length], false);
+        drawCarTop(ctx, sx(f.cars[i + 1], dz), sy(dz), k, COLORS[f.cars[i + 2] % COLORS.length], false,
+            Math.atan(off.slope(dz)), Math.max(-0.5, Math.min(0.5, off.curve(dz) * 1.5)));
     }
 
     for (const g of ghosts) {
         const dz = g.z - f.z;
         if (dz < -1 || dz > 2) continue;
         ctx.globalAlpha = 0.5;
-        drawCarTop(ctx, sx(g.x, dz), sy(dz), k, g.color, true);
+        drawCarTop(ctx, sx(g.x, dz), sy(dz), k, g.color, true, Math.atan(off.slope(dz)));
         ctx.globalAlpha = 1;
         label(ctx, g.name, sx(g.x, dz), sy(dz) - CAR_H * k * 0.6);
     }
 
-    if (!f.blink) drawCarTop(ctx, sx(f.x, 0), py, k, myColor, true);
+    if (!f.blink) drawCarTop(ctx, sx(f.x, 0), py, k, myColor, true, f.steer * 0.2, f.steer * 0.5);
 }
 
 // ---------- Cockpit (pseudo-3D) ----------
@@ -214,14 +230,17 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
     ctx.fillRect(0, hor, W, H - hor);
 
     const ds = [];
-    for (let i = f.curves.length - 1; i >= 0; i--) ds.push(Math.max(0.15, i * CURVE_STEP));
+    // Segmentgrenzen liggen vast in de wereld (niet t.o.v. de speler), zodat strepen vloeiend aankomen.
+    const base = Math.ceil(f.z / CURVE_STEP) * CURVE_STEP - f.z;
+    for (let i = f.curves.length - 2; i >= 0; i--) { const d = base + i * CURVE_STEP; if (d > 0.15) ds.push(d); }
+    ds.push(0.15);
     for (let j = 0; j < ds.length - 1; j++) {
         const d1 = ds[j], d2 = ds[j + 1];
-        if (d1 <= d2) continue;
         const y1 = py(d1), y2 = py(d2);
+        if (y2 - y1 < 0.3 && j < ds.length - 2) continue;
         const c1 = px(0.5, d1), c2 = px(0.5, d2);
         const w1 = 0.5 * fl / d1, w2 = 0.5 * fl / d2;
-        const band = Math.floor((f.z + d2) / 0.6) % 2 === 0;
+        const band = Math.floor((f.z + (d1 + d2) / 2) / 0.6) % 2 === 0;
         ctx.fillStyle = band ? "#15803d" : "#166534";
         ctx.fillRect(0, y1, W, y2 - y1 + 1);
         ctx.fillStyle = band ? "#ef4444" : "#f8fafc";
@@ -263,7 +282,8 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
             return;
         }
         if (s.kind === "ghost") ctx.globalAlpha = 0.55;
-        drawCarBack(ctx, x, y, CAR_W * scale, s.color);
+        const ang = Math.max(-0.5, Math.min(0.5, Math.atan(offRaw.slope(s.d)) * 0.6));
+        drawCarBack(ctx, x, y, CAR_W * scale, s.color, ang);
         ctx.globalAlpha = 1;
         if (s.kind === "ghost") label(ctx, s.name, x, y - CAR_W * scale);
     });
@@ -278,7 +298,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
     ctx.font = `bold ${Math.round(W * 0.06)}px system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(`${f.kmh} km/u`, W * 0.18, H * 0.9);
-    ctx.fillText("❤️".repeat(Math.max(0, f.lives)), W * 0.82, H * 0.9);
+    ctx.fillText("â¤ï¸".repeat(Math.max(0, f.lives)), W * 0.82, H * 0.9);
     ctx.save();
     ctx.translate(W / 2, H * 1.0);
     ctx.rotate(f.steer * 0.9);
@@ -294,10 +314,24 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
     if (f.blink) { ctx.fillStyle = "rgba(239,68,68,.25)"; ctx.fillRect(0, 0, W, H); }
 }
 
-function drawCarBack(ctx, x, y, w, color) {
+function drawCarBack(ctx, x, y, w, color, angle = 0) {
     const h = w * 0.7;
     ctx.fillStyle = "rgba(0,0,0,.35)";
     ctx.fillRect(x - w * 0.55, y - h * 0.08, w * 1.1, h * 0.12);
+    if (angle) {
+        // In een bocht zie je de zijkant van de auto: een stuk carrosserie aan de binnenkant van de bocht.
+        const side = w * Math.abs(angle) * 0.9, dir = angle > 0 ? -1 : 1;
+        ctx.fillStyle = color;
+        ctx.globalAlpha *= 0.8;
+        ctx.fillRect(dir < 0 ? x - w / 2 - side : x + w / 2, y - h * 0.75, side, h * 0.5);
+        ctx.globalAlpha /= 0.8;
+        ctx.fillStyle = "#111";
+        ctx.fillRect(dir < 0 ? x - w / 2 - side * 0.8 : x + w / 2 + side * 0.3, y - h * 0.3, side * 0.5, h * 0.3);
+    }
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(angle * 0.25);
+    ctx.translate(-x, -y);
     ctx.fillStyle = "#111";
     ctx.fillRect(x - w * 0.5, y - h * 0.25, w * 0.16, h * 0.25);
     ctx.fillRect(x + w * 0.34, y - h * 0.25, w * 0.16, h * 0.25);
@@ -308,6 +342,7 @@ function drawCarBack(ctx, x, y, w, color) {
     ctx.fillStyle = "#ef4444";
     ctx.fillRect(x - w * 0.45, y - h * 0.5, w * 0.15, h * 0.12);
     ctx.fillRect(x + w * 0.3, y - h * 0.5, w * 0.15, h * 0.12);
+    ctx.restore();
 }
 
 // ---------- HUD ----------
@@ -328,7 +363,7 @@ function drawHud(ctx, W, H, f, name) {
         ctx.fillStyle = "rgba(11,16,38,.6)";
         roundRect(ctx, 10, 10, 150, 34, 8);
         ctx.fillStyle = "#fff";
-        ctx.fillText("❤️".repeat(Math.max(0, f.lives)) + "  " + f.kmh + " km/u", 18, 28);
+        ctx.fillText("â¤ï¸".repeat(Math.max(0, f.lives)) + "  " + f.kmh + " km/u", 18, 28);
     }
     const right = f.finishDz >= 0 ? `${Math.max(0, Math.ceil(f.finishDz * 20))} m te gaan` : `${f.meters} m`;
     ctx.textAlign = "right";
@@ -341,8 +376,8 @@ function drawHud(ctx, W, H, f, name) {
 
     let big = "";
     if (f.status === "Countdown") big = String(Math.ceil(f.countdown));
-    else if (f.status === "Finished") big = "🏁 FINISH!";
-    else if (f.status === "GameOver" && f.finishDz >= 0) big = "💥 Uit de race";
+    else if (f.status === "Finished") big = "ðŸ FINISH!";
+    else if (f.status === "GameOver" && f.finishDz >= 0) big = "ðŸ’¥ Uit de race";
     if (big) {
         ctx.font = `900 ${Math.round(W * (big.length > 2 ? 0.1 : 0.25))}px system-ui, sans-serif`;
         ctx.fillStyle = "#fde047";

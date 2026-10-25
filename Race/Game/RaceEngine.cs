@@ -1,4 +1,4 @@
-namespace Race.Game;
+﻿namespace Race.Game;
 
 public enum RaceStatus { Ready, Countdown, Running, Finished, GameOver }
 
@@ -31,7 +31,7 @@ public sealed record RaceFrame(
 /// <summary>Pure spellogica van de racegame. Weg loopt van x=0 tot 1 (4 banen); z is de afstand langs de baan.</summary>
 public sealed class RaceEngine
 {
-    public const double CarW = 0.13;
+    public const double CarW = 0.16;
     public const double CarH = 0.22;
     public const double CoinR = 0.035;
     public const int StartLives = 3;
@@ -153,11 +153,10 @@ public sealed class RaceEngine
         }
 
         if (Invulnerable > 0) return;
-        const double shrink = 0.8;
         foreach (var c in _cars)
         {
             if (c.Id == _lastHit) continue;
-            if (Math.Abs(c.X - X) < CarW * shrink && Math.Abs(c.ZAt(Time) - Z) < CarH * shrink)
+            if (Math.Abs(c.X - X) < CarW * 0.92 && Math.Abs(c.ZAt(Time) - Z) < CarH * 0.8)
             {
                 _lastHit = c.Id;
                 Lives--;
