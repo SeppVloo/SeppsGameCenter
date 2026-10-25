@@ -16,27 +16,29 @@
 - `Game/RaceEngine.cs`: pure spellogica per speler: `Start(seed, finishZ, lane)`, `Tick(dt, steer, throttle)`, aftellen, bochtkracht, botsingen, munten, levens, finish. `Frame()` levert een `RaceFrame` (posities relatief aan de speler + kromming vooruit) om te tekenen. Geen UI-code.
 - `Pages/RacePage.razor`: modus-keuze, online-paneel, overlays, uitslag + JS-interop. `Tick(dt, input[])` is `[JSInvokable]` en wordt elke animatieframe synchroon aangeroepen voor alle lokale spelers.
 - `wwwroot/race.js`: input (toetsen, pointer per canvas), de `requestAnimationFrame`-lus en het tekenen (bovenaanzicht en cockpit) op canvas; localStorage.
-- `wwwroot/race-net.js`: online via Trystero (MQTT-signalling, WebRTC peer-to-peer, net als Pong); wordt pas geladen bij *Verbinden*.
+- `wwwroot/race-net.js`: online via publieke MQTT-brokers (EMQX + HiveMQ tegelijk, topic `sepp-race-v1/<CODE>`), zonder WebRTC zodat het ook achter strenge routers werkt; wordt pas geladen bij *Verbinden*.
 - `wwwroot/race.css`: alle stijlen met prefix `race-`.
 
 ## Regels
 - Weg van x=0 tot 1 (4 banen van 0,25); z = afstand langs de baan (1 eenheid = 20 m).
 - Basissnelheid start op 1,0 en stijgt met 0,02/s tot max 2,6. Gas = +50%, remmen = −50%. Naast de weg (gras): snelheid ×0,45.
 - **Bochten:** segmenten van 6–16 eenheden, recht of kromming 0,15–0,4 (zacht in/uit). In een bocht word je naar buiten geduwd: `kromming × snelheid² × 0,3` per seconde; tegensturen nodig.
-- Verkeer rijdt dezelfde kant op met een vaste snelheid per baan (0,45/0,55/0,65/0,75); per rij 1 of 2 auto's, rijen komen steeds dichter op elkaar. ~35% van de rijen heeft een munt in een vrije baan.
+- Verkeer rijdt dezelfde kant op met een vaste snelheid per baan (0,45/0,55/0,65/0,75); per rij 1 of 2 auto's, rijen komen steeds dichter op elkaar. ~35% van de rijen heeft een munt in een vrije baan, anders 12% kans op een power-up.
+- **Baanwissels:** ~35% van de auto's wisselt naar een buurbaan als ze 2–7 eenheden voor je rijden: eerst 1,3 s knipperlicht, dan in 0,9 s opschuiven. Alleen als de doelbaan vrij is. Deterministisch op auto-id (gelijk voor iedereen met dezelfde seed).
+- **Power-ups:** 👻 spook (5 s door andere auto's heen rijden), ⚡ turbo (4 s snelheid ×1,5), ❤️ extra leven (max 5).
 - Auto's zijn 0,16 breed; botsing als de afstand zijwaarts < 0,147 is (en < 0,176 in rijrichting). Op de lijn tussen twee auto's in naastgelegen banen door rijden kan dus niet.
 - 3 levens. Botsing: −1 leven, snelheid ×0,4, 2 seconden onkwetsbaar (knipperen). 0 levens: *Game over* / uit de race.
 - Score = meters + 50 per munt. Solo: beste score in localStorage `race.best`.
 - Start na 3 seconden aftellen.
 
 ## Weergave
-- Bovenaanzicht: weg buigt mee met de bochten; auto's draaien mee met de richting van de weg; de voorwielen van je eigen auto draaien mee met sturen (en die van het verkeer in bochten).
-- Cockpit: segmenten liggen vast in de wereld (strepen schuiven vloeiend), verre segmenten kleiner dan een pixel worden overgeslagen. Auto's voor je draaien mee in de bocht en tonen dan hun zijkant. Dashboard met snelheid/levens en een stuur dat meedraait.
+- Bovenaanzicht: weg buigt mee met de bochten; auto's draaien mee met de richting van de weg; wielen steken uit de carrosserie en de voorwielen van je eigen auto draaien zichtbaar mee met sturen. Knipperlichten bij baanwissels.
+- Cockpit: camera zit 0,35 achter de bestuurder met breder beeld (meer zijkant zichtbaar); wegsegmenten 3x fijner (0,1) voor een 3x vloeiender beeld; segmenten liggen vast in de wereld, verre segmenten kleiner dan een pixel worden overgeslagen. Auto's voor je draaien mee in de bocht en tonen dan hun zijkant. Dashboard met snelheid/levens en een stuur dat meedraait.
 
 ## Multiplayer
 - **Samen (split-screen):** 2 spelers, twee canvassen naast elkaar, dezelfde seed, startbanen 2 en 3. Race van 3 km (150 eenheden).
 - **Online:** kamercode (4 letters, *Nieuwe code* of zelf invullen) + naam (`race.name`). Iedereen in de kamer kan *Start race voor iedereen* drukken: die stuurt de seed, ieder start tegelijk met eigen startbaan (op volgorde van peer-id). Race van 3 km.
-- Elke speler stuurt ~10x/s zijn positie; andere spelers zijn **spookauto's** (half doorzichtig met naam, geen botsing).
+- Elke speler stuurt ~10x/s zijn positie; andere spelers zijn **spookauto's** (half doorzichtig met naam, geen botsing). Elke 2 s een groet; wie 6 s niets stuurt verdwijnt uit de lijst.
 - Uitslag zodra alle lokale spelers klaar zijn: eerst gefinisht (op tijd), dan nog rijdend, dan uitgevallen (op afstand). Online werkt de uitslag live bij.
 
 ## Besturing
@@ -57,3 +59,4 @@
 - **Soepeler en echter:** cockpit vloeiender (wereld-vaste segmenten, minder tekenwerk); auto's draaien mee in bochten; voorwielen draaien mee met sturen; auto's breder + strengere botsing zodat je niet meer tussen twee auto's door over de lijn kunt.
 
 - Fix: syntaxfout in race.js (afgebroken constantenregel) waardoor het spel niet meer startte; online spelers groeten elkaar nu elke 2 s opnieuw en verschijnen direct bij binnenkomst, zodat ze elkaar altijd vinden.
+- **Power-ups en knipperende auto's:** power-ups spook/turbo/extra leven; verkeer wisselt soms van baan na knipperen; online via MQTT-berichten i.p.v. WebRTC (spelers vonden elkaar niet); duidelijk draaiende voorwielen in bovenaanzicht; cockpit 3x fijnere segmenten en camera verder naar achteren.

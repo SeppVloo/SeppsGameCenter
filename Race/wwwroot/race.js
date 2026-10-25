@@ -120,31 +120,56 @@ function quad(ctx, x1, y1, w1, x2, y2, w2) {
 
 // ---------- Bovenaanzicht ----------
 
-/** angle = draaiing van de auto (radialen, + = rechtsom), wheel = stuurhoek van de voorwielen. */
-function drawCarTop(ctx, cx, cy, k, color, glow, angle = 0, wheel = 0) {
+/** angle = draaiing van de auto (radialen, + = rechtsom), wheel = stuurhoek van de voorwielen, blink = -1/0/1 knipperlicht. */
+function drawCarTop(ctx, cx, cy, k, color, glow, angle = 0, wheel = 0, blink = 0) {
     const w = CAR_W * k, h = CAR_H * k, px = -w / 2, py = -h / 2;
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
-    const ww = w * 0.12, wh = h * 0.2;
+    const ww = w * 0.16, wh = h * 0.22;
     ctx.fillStyle = "#111";
+    // Wielen steken buiten de carrosserie uit, zodat je de voorwielen ziet meedraaien.
     for (const [oy, a] of [[0.12, wheel], [0.68, 0]]) {
-        for (const sx of [px, px + w]) {
+        for (const sx of [px - ww * 0.15, px + w + ww * 0.15]) {
             ctx.save();
             ctx.translate(sx, py + h * oy + wh / 2);
             ctx.rotate(a);
             ctx.fillRect(-ww / 2, -wh / 2, ww, wh);
+            ctx.fillStyle = "#9ca3af";
+            ctx.fillRect(-ww / 2, -wh * 0.08, ww, wh * 0.16);
             ctx.restore();
         }
     }
     ctx.fillStyle = color;
     if (glow) { ctx.shadowColor = color; ctx.shadowBlur = 16; }
-    roundRect(ctx, px, py, w, h, w * 0.25);
+    roundRect(ctx, px + ww * 0.3, py, w - ww * 0.6, h, w * 0.25);
     ctx.shadowBlur = 0;
     ctx.fillStyle = "rgba(11,16,38,.75)";
     roundRect(ctx, px + w * 0.15, py + h * 0.22, w * 0.7, h * 0.16, 3);
     roundRect(ctx, px + w * 0.15, py + h * 0.66, w * 0.7, h * 0.1, 3);
+    if (blink && blinkOn()) {
+        ctx.fillStyle = "#fbbf24"; ctx.shadowColor = "#fbbf24"; ctx.shadowBlur = 10;
+        const bx = blink < 0 ? px + w * 0.12 : px + w * 0.88;
+        for (const by of [py + h * 0.04, py + h * 0.96]) { ctx.beginPath(); ctx.arc(bx, by, w * 0.1, 0, Math.PI * 2); ctx.fill(); }
+        ctx.shadowBlur = 0;
+    }
     ctx.restore();
+}
+
+const blinkOn = () => Math.floor(performance.now() / 250) % 2 === 0;
+const PU_ICONS = ["👻", "⚡", "❤️"];
+const PU_COLORS = ["#c4b5fd", "#fde047", "#fb7185"];
+
+function drawPowerUp(ctx, x, y, r, kind) {
+    const pulse = 1 + Math.sin(performance.now() / 150) * 0.1;
+    ctx.fillStyle = PU_COLORS[kind] ?? "#fff";
+    ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 14;
+    ctx.beginPath(); ctx.arc(x, y, r * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.font = `${Math.max(8, Math.round(r * 1.3))}px system-ui, sans-serif`;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(PU_ICONS[kind] ?? "?", x, y + 1);
+    ctx.textAlign = "left";
 }
 
 function drawTop(ctx, W, H, f, ghosts, myColor) {
@@ -188,10 +213,15 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
         ctx.beginPath(); ctx.arc(x, y, COIN_R * k * 0.55, 0, Math.PI * 2); ctx.fill();
     }
 
-    for (let i = 0; i < f.cars.length; i += 3) {
+    for (let i = 0; i < f.powerUps.length; i += 3) {
+        const dz = f.powerUps[i];
+        drawPowerUp(ctx, sx(f.powerUps[i + 1], dz), sy(dz), COIN_R * k * 1.4, f.powerUps[i + 2]);
+    }
+
+    for (let i = 0; i < f.cars.length; i += 4) {
         const dz = f.cars[i];
         drawCarTop(ctx, sx(f.cars[i + 1], dz), sy(dz), k, COLORS[f.cars[i + 2] % COLORS.length], false,
-            Math.atan(off.slope(dz)), Math.max(-0.5, Math.min(0.5, off.curve(dz) * 1.5)));
+            Math.atan(off.slope(dz)), Math.max(-0.5, Math.min(0.5, off.curve(dz) * 1.5)), f.cars[i + 3]);
     }
 
     for (const g of ghosts) {
@@ -203,17 +233,26 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
         label(ctx, g.name, sx(g.x, dz), sy(dz) - CAR_H * k * 0.6);
     }
 
-    if (!f.blink) drawCarTop(ctx, sx(f.x, 0), py, k, myColor, true, f.steer * 0.2, f.steer * 0.5);
+    if (!f.blink) {
+        if (f.ghost > 0) ctx.globalAlpha = 0.45;
+        if (f.boost > 0) {
+            ctx.fillStyle = blinkOn() ? "#f97316" : "#fde047";
+            ctx.beginPath(); ctx.arc(sx(f.x, 0), py + CAR_H * k * 0.6, CAR_W * k * 0.25, 0, Math.PI * 2); ctx.fill();
+        }
+        drawCarTop(ctx, sx(f.x, 0), py, k, myColor, true, f.steer * 0.2, f.steer * 0.6);
+        ctx.globalAlpha = 1;
+    }
 }
 
 // ---------- Cockpit (pseudo-3D) ----------
 
 function drawCockpit(ctx, W, H, f, ghosts, sky) {
-    const hor = H * 0.42, fl = W * 0.9, camH = 0.22;
+    // Camera zit iets achter en boven de bestuurder met een bredere blik, zodat je meer van de zijkant ziet.
+    const hor = H * 0.4, fl = W * 0.62, camH = 0.26, BACK = 0.35;
     const offRaw = offsets(f.curves);
     const off = d => offRaw(d) * COCKPIT_CURVE;
-    const px = (u, d) => W / 2 + (u + off(d) - f.x) * fl / d;
-    const py = d => hor + camH * fl / d;
+    const px = (u, d) => W / 2 + (u + off(d) - f.x) * fl / (d + BACK);
+    const py = d => hor + camH * fl / (d + BACK);
 
     const g = ctx.createLinearGradient(0, 0, 0, hor);
     g.addColorStop(0, "#0ea5e9"); g.addColorStop(1, "#bae6fd");
@@ -231,15 +270,17 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
 
     const ds = [];
     // Segmentgrenzen liggen vast in de wereld (niet t.o.v. de speler), zodat strepen vloeiend aankomen.
-    const base = Math.ceil(f.z / CURVE_STEP) * CURVE_STEP - f.z;
-    for (let i = f.curves.length - 2; i >= 0; i--) { const d = base + i * CURVE_STEP; if (d > 0.15) ds.push(d); }
-    ds.push(0.15);
+    // 3x fijner dan de bochtdata, zodat de weg 3x vaker "ververst" en vloeiender beweegt.
+    const STEP = CURVE_STEP / 3, NEAR = -BACK + 0.12;
+    const base = Math.ceil(f.z / STEP) * STEP - f.z;
+    for (let i = (f.curves.length - 2) * 3; i >= -3; i--) { const d = base + i * STEP; if (d > NEAR) ds.push(d); }
+    ds.push(NEAR);
     for (let j = 0; j < ds.length - 1; j++) {
         const d1 = ds[j], d2 = ds[j + 1];
         const y1 = py(d1), y2 = py(d2);
         if (y2 - y1 < 0.3 && j < ds.length - 2) continue;
         const c1 = px(0.5, d1), c2 = px(0.5, d2);
-        const w1 = 0.5 * fl / d1, w2 = 0.5 * fl / d2;
+        const w1 = 0.5 * fl / (d1 + BACK), w2 = 0.5 * fl / (d2 + BACK);
         const band = Math.floor((f.z + (d1 + d2) / 2) / 0.6) % 2 === 0;
         ctx.fillStyle = band ? "#15803d" : "#166534";
         ctx.fillRect(0, y1, W, y2 - y1 + 1);
@@ -251,7 +292,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
             ctx.fillStyle = "rgba(255,255,255,.7)";
             for (let l = 1; l < LANES; l++) {
                 const u = l / LANES;
-                quad(ctx, px(u, d1), y1, 0.008 * fl / d1, px(u, d2), y2, 0.008 * fl / d2);
+                quad(ctx, px(u, d1), y1, 0.008 * fl / (d1 + BACK), px(u, d2), y2, 0.008 * fl / (d2 + BACK));
             }
         }
         if (f.finishDz > 0 && f.finishDz >= d2 && f.finishDz < d1) {
@@ -259,20 +300,23 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
             for (let c = 0; c < n; c++) {
                 ctx.fillStyle = c % 2 ? "#000" : "#fff";
                 const u = (c + 0.5) / n;
-                quad(ctx, px(u, d1), y1, 0.5 / n * fl / d1, px(u, d2), y2, 0.5 / n * fl / d2);
+                quad(ctx, px(u, d1), y1, 0.5 / n * fl / (d1 + BACK), px(u, d2), y2, 0.5 / n * fl / (d2 + BACK));
             }
         }
     }
 
     const sprites = [];
-    for (let i = 0; i < f.cars.length; i += 3)
-        sprites.push({ d: f.cars[i], u: f.cars[i + 1], kind: "car", color: COLORS[f.cars[i + 2] % COLORS.length] });
+    for (let i = 0; i < f.cars.length; i += 4)
+        sprites.push({ d: f.cars[i], u: f.cars[i + 1], kind: "car", color: COLORS[f.cars[i + 2] % COLORS.length], blink: f.cars[i + 3] });
     for (let i = 0; i < f.coins.length; i += 2)
         sprites.push({ d: f.coins[i], u: f.coins[i + 1], kind: "coin" });
+    for (let i = 0; i < f.powerUps.length; i += 3)
+        sprites.push({ d: f.powerUps[i], u: f.powerUps[i + 1], kind: "pu", pu: f.powerUps[i + 2] });
     for (const gh of ghosts)
         sprites.push({ d: gh.z - f.z, u: gh.x, kind: "ghost", color: gh.color, name: gh.name });
-    sprites.filter(s => s.d > 0.2 && s.d < 30).sort((a, b) => b.d - a.d).forEach(s => {
-        const x = px(s.u, s.d), y = py(s.d), scale = fl / s.d;
+    sprites.filter(s => s.d > NEAR + 0.1 && s.d < 30).sort((a, b) => b.d - a.d).forEach(s => {
+        const x = px(s.u, s.d), y = py(s.d), scale = fl / (s.d + BACK);
+        if (s.kind === "pu") { const r = COIN_R * 1.4 * scale; drawPowerUp(ctx, x, y - r * 1.6, r, s.pu); return; }
         if (s.kind === "coin") {
             const r = COIN_R * scale;
             ctx.fillStyle = "#fde047";
@@ -283,7 +327,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
         }
         if (s.kind === "ghost") ctx.globalAlpha = 0.55;
         const ang = Math.max(-0.5, Math.min(0.5, Math.atan(offRaw.slope(s.d)) * 0.6));
-        drawCarBack(ctx, x, y, CAR_W * scale, s.color, ang);
+        drawCarBack(ctx, x, y, CAR_W * scale, s.color, ang, s.blink);
         ctx.globalAlpha = 1;
         if (s.kind === "ghost") label(ctx, s.name, x, y - CAR_W * scale);
     });
@@ -312,9 +356,10 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
     ctx.textAlign = "left";
 
     if (f.blink) { ctx.fillStyle = "rgba(239,68,68,.25)"; ctx.fillRect(0, 0, W, H); }
+    if (f.ghost > 0) { ctx.fillStyle = "rgba(196,181,253,.18)"; ctx.fillRect(0, 0, W, H); }
 }
 
-function drawCarBack(ctx, x, y, w, color, angle = 0) {
+function drawCarBack(ctx, x, y, w, color, angle = 0, blink = 0) {
     const h = w * 0.7;
     ctx.fillStyle = "rgba(0,0,0,.35)";
     ctx.fillRect(x - w * 0.55, y - h * 0.08, w * 1.1, h * 0.12);
@@ -342,6 +387,11 @@ function drawCarBack(ctx, x, y, w, color, angle = 0) {
     ctx.fillStyle = "#ef4444";
     ctx.fillRect(x - w * 0.45, y - h * 0.5, w * 0.15, h * 0.12);
     ctx.fillRect(x + w * 0.3, y - h * 0.5, w * 0.15, h * 0.12);
+    if (blink && blinkOn()) {
+        ctx.fillStyle = "#fbbf24"; ctx.shadowColor = "#fbbf24"; ctx.shadowBlur = 12;
+        ctx.fillRect(blink < 0 ? x - w * 0.5 : x + w * 0.38, y - h * 0.68, w * 0.12, h * 0.14);
+        ctx.shadowBlur = 0;
+    }
     ctx.restore();
 }
 
@@ -373,6 +423,8 @@ function drawHud(ctx, W, H, f, name) {
     ctx.fillText(right, W - 18, 28);
     ctx.textAlign = "center";
     if (name) { ctx.fillStyle = "rgba(11,16,38,.6)"; roundRect(ctx, W / 2 - 60, 50, 120, 28, 8); ctx.fillStyle = "#fff"; ctx.fillText(name, W / 2, 64); }
+    const pu = [f.ghost > 0 ? `👻 ${Math.ceil(f.ghost)}` : "", f.boost > 0 ? `⚡ ${Math.ceil(f.boost)}` : ""].filter(Boolean).join("  ");
+    if (pu) { ctx.fillStyle = "rgba(11,16,38,.6)"; roundRect(ctx, W / 2 - 60, name ? 84 : 50, 120, 28, 8); ctx.fillStyle = "#fff"; ctx.fillText(pu, W / 2, name ? 98 : 64); }
 
     let big = "";
     if (f.status === "Countdown") big = String(Math.ceil(f.countdown));

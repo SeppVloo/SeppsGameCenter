@@ -8,9 +8,37 @@ public sealed class TrafficCar
     public int Lane { get; init; }
     public double Z0 { get; init; }
     public int Color { get; init; }
-    public double X => Track.LaneX(Lane);
+    /// <summary>Doelbaan bij een baanwissel, of -1.</summary>
+    public int Target { get; set; } = -1;
+    /// <summary>Moment (speltijd) waarop de auto begint te verplaatsen; daarvoor knippert hij.</summary>
+    public double MoveAt { get; set; } = double.MaxValue;
+    public bool Decided { get; set; }
     public double Speed => Track.LaneSpeed(Lane);
     public double ZAt(double time) => Z0 + Speed * time;
+
+    public const double SignalTime = 1.3, MoveTime = 0.9;
+
+    public double XAt(double time)
+    {
+        if (Target < 0 || time <= MoveAt) return Track.LaneX(Lane);
+        var p = Math.Min(1, (time - MoveAt) / MoveTime);
+        p = p * p * (3 - 2 * p);
+        return Track.LaneX(Lane) + (Track.LaneX(Target) - Track.LaneX(Lane)) * p;
+    }
+
+    /// <summary>-1 = knippert links, 1 = rechts, 0 = niet.</summary>
+    public int Blinker(double time) =>
+        Target >= 0 && time >= MoveAt - SignalTime && time < MoveAt + MoveTime ? Math.Sign(Target - Lane) : 0;
+}
+
+public enum PowerUpKind { Ghost, Boost, Heart }
+
+public sealed class PowerUp
+{
+    public int Id { get; init; }
+    public double X { get; init; }
+    public double Z { get; init; }
+    public PowerUpKind Kind { get; init; }
 }
 
 public sealed class Coin
@@ -21,12 +49,14 @@ public sealed class Coin
 }
 
 /// <summary>
-/// Snapshot voor de tekencode (JS). Z = afgelegde afstand. Cars: dz,x,kleur per auto; Coins: dz,x per munt
+/// Snapshot voor de tekencode (JS). Z = afgelegde afstand. Cars: dz,x,kleur,knipperlicht per auto; Coins: dz,x per munt;
+/// PowerUps: dz,x,soort; Ghost/Boost: resterende seconden van die power-up
 /// (dz = afstand t.o.v. de speler). Curves: kromming vanaf de speler in stappen van <see cref="RaceEngine.CurveStep"/>.
 /// </summary>
 public sealed record RaceFrame(
     double X, double Z, double Steer, bool Blink, double[] Cars, double[] Coins, double[] Curves,
-    double FinishDz, int Score, int Meters, int Lives, int Kmh, double Countdown, double FinishTime, string Status);
+    double FinishDz, int Score, int Meters, int Lives, int Kmh, double Countdown, double FinishTime, string Status,
+    double[] PowerUps, double Ghost, double Boost);
 
 /// <summary>Pure spellogica van de racegame. Weg loopt van x=0 tot 1 (4 banen); z is de afstand langs de baan.</summary>
 public sealed class RaceEngine
@@ -41,10 +71,14 @@ public sealed class RaceEngine
     public const double CurveStep = 0.3;
     public const int CurveSamples = 100;
     public const double Drift = 0.3;
+    public const int MaxLives = 5;
+    public const double GhostSeconds = 5;
+    public const double BoostSeconds = 4;
     private const double ViewBehind = 1.5;
 
     private readonly List<TrafficCar> _cars = [];
     private readonly List<Coin> _coins = [];
+    private readonly List<PowerUp> _powerUps = [];
     private int _lastHit = -1;
     private Track _track = new(1);
 
@@ -60,6 +94,9 @@ public sealed class RaceEngine
     public int Lives { get; private set; }
     public int CoinCount { get; private set; }
     public double Invulnerable { get; private set; }
+    public double GhostLeft { get; private set; }
+    public double BoostLeft { get; private set; }
+    public IReadOnlyList<PowerUp> PowerUps => _powerUps;
     /// <summary>Afstand van de finish in baan-eenheden, of 0 voor eindeloos.</summary>
     public double FinishZ { get; private set; }
     public double? FinishTime { get; private set; }
@@ -78,6 +115,8 @@ public sealed class RaceEngine
     {
         _cars.Clear();
         _coins.Clear();
+        _powerUps.Clear();
+        GhostLeft = BoostLeft = 0;
         Status = RaceStatus.Ready;
         X = Track.LaneX(1);
         Z = Speed = Time = Countdown = Steer = Invulnerable = 0;
@@ -112,14 +151,16 @@ public sealed class RaceEngine
         {
             Countdown -= dt;
             if (Countdown <= 0) { Countdown = 0; Status = RaceStatus.Running; }
-            _track.Generate(Z + 32, _cars, _coins);
+            _track.Generate(Z + 32, _cars, _coins, _powerUps);
             return;
         }
         if (Status != RaceStatus.Running) return;
         throttle = Math.Clamp(throttle, -1, 1);
 
         Time += dt;
-        var target = BaseSpeed * (1 + 0.5 * throttle) * (OffRoad ? 0.45 : 1);
+        GhostLeft = Math.Max(0, GhostLeft - dt);
+        BoostLeft = Math.Max(0, BoostLeft - dt);
+        var target = BaseSpeed * (1 + 0.5 * throttle) * (OffRoad ? 0.45 : 1) * (BoostLeft > 0 ? 1.5 : 1);
         Speed += Math.Clamp(target - Speed, -2.5 * dt, 1.2 * dt);
         Z += Speed * dt;
         Invulnerable = Math.Max(0, Invulnerable - dt);
@@ -127,9 +168,11 @@ public sealed class RaceEngine
         var curve = _track.Curve(Z);
         X = Math.Clamp(X + (Steer * 1.3 - curve * Speed * Speed * Drift) * dt, -0.2, 1.2);
 
-        _track.Generate(Z + 32, _cars, _coins);
+        _track.Generate(Z + 32, _cars, _coins, _powerUps);
         _cars.RemoveAll(c => c.ZAt(Time) < Z - ViewBehind);
         _coins.RemoveAll(c => c.Z < Z - ViewBehind);
+        _powerUps.RemoveAll(p => p.Z < Z - ViewBehind);
+        PlanLaneChanges();
 
         CheckCollisions();
 
@@ -140,8 +183,50 @@ public sealed class RaceEngine
         }
     }
 
+    /// <summary>
+    /// Sommige auto's wisselen van baan: eerst knipperen, dan opschuiven. Alleen als de doelbaan vrij is.
+    /// Beslissing is deterministisch (op auto-id), dus gelijk voor alle spelers met dezelfde seed.
+    /// </summary>
+    private void PlanLaneChanges()
+    {
+        foreach (var c in _cars)
+        {
+            if (c.Decided) continue;
+            var dz = c.ZAt(Time) - Z;
+            if (dz > 7 || dz < 2) continue;
+            c.Decided = true;
+            var h = (uint)(c.Id * 2654435761u);
+            if (h % 100 >= 35) continue;
+            var dir = (h >> 8) % 2 == 0 ? -1 : 1;
+            if (c.Lane + dir is < 0 or >= Track.Lanes) dir = -dir;
+            var target = c.Lane + dir;
+            var moveAt = Time + TrafficCar.SignalTime;
+            var end = moveAt + TrafficCar.MoveTime + 1;
+            var blocked = _cars.Any(o => o != c && (o.Lane == target || o.Target == target) &&
+                (Math.Abs(o.ZAt(moveAt) - c.ZAt(moveAt)) < 0.8 || Math.Abs(o.ZAt(end) - c.ZAt(end)) < 0.8));
+            if (blocked) continue;
+            c.Target = target;
+            c.MoveAt = moveAt;
+        }
+    }
+
     private void CheckCollisions()
     {
+        for (int i = _powerUps.Count - 1; i >= 0; i--)
+        {
+            var p = _powerUps[i];
+            if (Math.Abs(p.X - X) < CarW / 2 + CoinR * 1.3 && Math.Abs(p.Z - Z) < CarH / 2 + CoinR * 1.3)
+            {
+                switch (p.Kind)
+                {
+                    case PowerUpKind.Ghost: GhostLeft = GhostSeconds; break;
+                    case PowerUpKind.Boost: BoostLeft = BoostSeconds; break;
+                    case PowerUpKind.Heart: Lives = Math.Min(MaxLives, Lives + 1); break;
+                }
+                _powerUps.RemoveAt(i);
+            }
+        }
+
         for (int i = _coins.Count - 1; i >= 0; i--)
         {
             var c = _coins[i];
@@ -152,11 +237,11 @@ public sealed class RaceEngine
             }
         }
 
-        if (Invulnerable > 0) return;
+        if (Invulnerable > 0 || GhostLeft > 0) return;
         foreach (var c in _cars)
         {
             if (c.Id == _lastHit) continue;
-            if (Math.Abs(c.X - X) < CarW * 0.92 && Math.Abs(c.ZAt(Time) - Z) < CarH * 0.8)
+            if (Math.Abs(c.XAt(Time) - X) < CarW * 0.92 && Math.Abs(c.ZAt(Time) - Z) < CarH * 0.8)
             {
                 _lastHit = c.Id;
                 Lives--;
@@ -170,10 +255,16 @@ public sealed class RaceEngine
 
     public RaceFrame Frame()
     {
-        var cars = new double[_cars.Count * 3];
+        var cars = new double[_cars.Count * 4];
         for (int i = 0; i < _cars.Count; i++)
         {
-            cars[i * 3] = _cars[i].ZAt(Time) - Z; cars[i * 3 + 1] = _cars[i].X; cars[i * 3 + 2] = _cars[i].Color;
+            var c = _cars[i];
+            cars[i * 4] = c.ZAt(Time) - Z; cars[i * 4 + 1] = c.XAt(Time); cars[i * 4 + 2] = c.Color; cars[i * 4 + 3] = c.Blinker(Time);
+        }
+        var pu = new double[_powerUps.Count * 3];
+        for (int i = 0; i < _powerUps.Count; i++)
+        {
+            pu[i * 3] = _powerUps[i].Z - Z; pu[i * 3 + 1] = _powerUps[i].X; pu[i * 3 + 2] = (int)_powerUps[i].Kind;
         }
         var coins = new double[_coins.Count * 2];
         for (int i = 0; i < _coins.Count; i++)
@@ -185,6 +276,7 @@ public sealed class RaceEngine
 
         var blink = Invulnerable > 0 && (int)(Invulnerable * 8) % 2 == 0;
         var finishDz = FinishZ > 0 ? FinishZ - Z : -1;
-        return new RaceFrame(X, Z, Steer, blink, cars, coins, curves, finishDz, Score, Meters, Lives, Kmh, Countdown, FinishTime ?? -1, Status.ToString());
+        return new RaceFrame(X, Z, Steer, blink, cars, coins, curves, finishDz, Score, Meters, Lives, Kmh, Countdown, FinishTime ?? -1, Status.ToString(),
+            pu, GhostLeft, BoostLeft);
     }
 }

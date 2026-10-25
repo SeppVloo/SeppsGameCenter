@@ -53,7 +53,7 @@ public sealed class Track
     }
 
     /// <summary>Genereert verkeer/munten met startpositie (op t=0) tot en met maxZ.</summary>
-    public void Generate(double maxZ, List<TrafficCar> cars, List<Coin> coins)
+    public void Generate(double maxZ, List<TrafficCar> cars, List<Coin> coins, List<PowerUp> powerUps)
     {
         while (_rowNext < maxZ)
         {
@@ -68,6 +68,8 @@ public sealed class Track
             }
             if (_rowRng.NextDouble() < 0.35)
                 coins.Add(new Coin { Id = _nextId++, X = LaneX(free[_rowRng.Next(free.Count)]), Z = z + 0.3 });
+            else if (_rowRng.NextDouble() < 0.12)
+                powerUps.Add(new PowerUp { Id = _nextId++, X = LaneX(free[_rowRng.Next(free.Count)]), Z = z + 0.3, Kind = (PowerUpKind)_rowRng.Next(3) });
             _rowNext += Math.Max(0.45, 1.1 - z / 200) * (0.8 + _rowRng.NextDouble() * 0.4);
         }
     }
