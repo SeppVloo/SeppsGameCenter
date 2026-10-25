@@ -55,3 +55,5 @@
 - **Help:** inklapbare uitleg "Hoe speel je?".
 - **Cockpit, bochten en multiplayer:** pseudo-3D cockpitcamera naast het bovenaanzicht; bochten met buitenwaartse kracht en gras naast de weg; deterministische baan via seed; split-screen voor 2 spelers en online tot 4 spelers met kamercode (spookauto's, race van 3 km, uitslag); aftellen bij de start.
 - **Soepeler en echter:** cockpit vloeiender (wereld-vaste segmenten, minder tekenwerk); auto's draaien mee in bochten; voorwielen draaien mee met sturen; auto's breder + strengere botsing zodat je niet meer tussen twee auto's door over de lijn kunt.
+
+- Fix: syntaxfout in race.js (afgebroken constantenregel) waardoor het spel niet meer startte; online spelers groeten elkaar nu elke 2 s opnieuw en verschijnen direct bij binnenkomst, zodat ze elkaar altijd vinden.

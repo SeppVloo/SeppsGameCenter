@@ -1,4 +1,4 @@
-﻿// Race: input, game-loop (requestAnimationFrame), tekenen (bovenaanzicht en cockpit) en localStorage.
+// Race: input, game-loop (requestAnimationFrame), tekenen (bovenaanzicht en cockpit) en localStorage.
 // Alle spellogica zit in C# (RaceEngine); Tick wordt elk frame synchroon aangeroepen.
 let dotnet = null, raf = 0, last = 0, view = "top", names = [], online = false, net = null, sendTimer = 0;
 let canvases = [], frames = [];
@@ -7,7 +7,7 @@ const pointers = new Map(); // canvas-index -> { id, x }
 const skies = new Map();    // canvas-index -> horizon-verschuiving
 const COLORS = ["#f472b6", "#a78bfa", "#fb923c", "#4ade80", "#facc15", "#60a5fa"];
 const PLAYER_COLORS = ["#22d3ee", "#f97316", "#a3e635", "#e879f9"];
-const CAR_W = 0.16, CAR_H = 0.22,
+const CAR_W = 0.16, CAR_H = 0.22, COIN_R = 0.035, LANES = 4, CURVE_STEP = 0.3, COCKPIT_CURVE = 0.06;
 const GAME_KEYS = ["arrowleft", "arrowright", "arrowup", "arrowdown", "a", "d", "w", "s"];
 
 const busy = () => frames.some(f => f.status === "Running" || f.status === "Countdown");
@@ -298,7 +298,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
     ctx.font = `bold ${Math.round(W * 0.06)}px system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(`${f.kmh} km/u`, W * 0.18, H * 0.9);
-    ctx.fillText("â¤ï¸".repeat(Math.max(0, f.lives)), W * 0.82, H * 0.9);
+    ctx.fillText("❤️".repeat(Math.max(0, f.lives)), W * 0.82, H * 0.9);
     ctx.save();
     ctx.translate(W / 2, H * 1.0);
     ctx.rotate(f.steer * 0.9);
@@ -363,7 +363,7 @@ function drawHud(ctx, W, H, f, name) {
         ctx.fillStyle = "rgba(11,16,38,.6)";
         roundRect(ctx, 10, 10, 150, 34, 8);
         ctx.fillStyle = "#fff";
-        ctx.fillText("â¤ï¸".repeat(Math.max(0, f.lives)) + "  " + f.kmh + " km/u", 18, 28);
+        ctx.fillText("❤️".repeat(Math.max(0, f.lives)) + "  " + f.kmh + " km/u", 18, 28);
     }
     const right = f.finishDz >= 0 ? `${Math.max(0, Math.ceil(f.finishDz * 20))} m te gaan` : `${f.meters} m`;
     ctx.textAlign = "right";
@@ -376,8 +376,8 @@ function drawHud(ctx, W, H, f, name) {
 
     let big = "";
     if (f.status === "Countdown") big = String(Math.ceil(f.countdown));
-    else if (f.status === "Finished") big = "ðŸ FINISH!";
-    else if (f.status === "GameOver" && f.finishDz >= 0) big = "ðŸ’¥ Uit de race";
+    else if (f.status === "Finished") big = "🏁 FINISH!";
+    else if (f.status === "GameOver" && f.finishDz >= 0) big = "💥 Uit de race";
     if (big) {
         ctx.font = `900 ${Math.round(W * (big.length > 2 ? 0.1 : 0.25))}px system-ui, sans-serif`;
         ctx.fillStyle = "#fde047";

@@ -21,17 +21,23 @@ function myLane() {
 export function connect(code, name, ref) {
     leave();
     dotnet = ref; myName = name;
-    room = joinRoom({ appId: APP_ID }, "race-" + code.toUpperCase());
+    room = joinRoom({ appId: APP_ID }, "race-" + String(code ?? "").trim().toUpperCase());
     let onHello, onState, onStart;
     [sendHello, onHello] = room.makeAction("hello");
     [sendState, onState] = room.makeAction("state");
     [sendStart, onStart] = room.makeAction("start");
-    room.onPeerJoin(id => sendHello({ name: myName }, id));
+    room.onPeerJoin(id => {
+        if (!peers.has(id)) peers.set(id, { name: "..." });
+        sendHello({ name: myName }, id);
+        push();
+    });
     room.onPeerLeave(id => { peers.delete(id); push(); });
     onHello((m, id) => { peers.set(id, { ...(peers.get(id) ?? {}), name: String(m?.name ?? "?").slice(0, 16) }); push(); });
     onState((m, id) => { peers.set(id, { ...(peers.get(id) ?? {}), ...m }); });
     onStart((m) => dotnet?.invokeMethodAsync("OnNetStart", m.seed | 0, myLane()));
-    timer = setInterval(push, 500);
+    // Herhaal de groet regelmatig zodat een gemiste eerste hello niet betekent dat je elkaar nooit ziet.
+    let tick = 0;
+    timer = setInterval(() => { if (++tick % 4 === 0) sendHello?.({ name: myName }); push(); }, 500);
 }
 
 function push() { dotnet?.invokeMethodAsync("OnPeers", list()); }

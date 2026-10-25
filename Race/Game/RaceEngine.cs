@@ -1,4 +1,4 @@
-﻿namespace Race.Game;
+namespace Race.Game;
 
 public enum RaceStatus { Ready, Countdown, Running, Finished, GameOver }
 
