@@ -43,7 +43,7 @@
 
 ## Besturing
 - Solo/online: ←/→ of A/D sturen, ↑/W gas, ↓/S remmen. Samen: speler 1 A/D/W/S, speler 2 pijltjes. V = camera wisselen.
-- Touch/muis: vinger op de weg houden/slepen; de auto stuurt naar de vinger. Samen: ieder op zijn eigen helft.
+- Touch/muis: vinger op de weg houden/slepen; de auto stuurt naar de vinger. Hoogte van de vinger bepaalt gas/rem: bovenste 40% = gas, onderste 25% = remmen, daartussen gewoon rijden (zones zichtbaar met een groene en rode lijn, de actieve zone licht op). Samen: ieder op zijn eigen helft.
 - Hint toont alleen wat bij het apparaat past (coarse pointer = touch).
 - Inklapbare **❓ Hoe speel je?** boven de weg. Houd deze tekst bij als regels veranderen.
 
@@ -62,3 +62,4 @@
 - **Power-ups en knipperende auto's:** power-ups spook/turbo/extra leven; verkeer wisselt soms van baan na knipperen; online via MQTT-berichten i.p.v. WebRTC (spelers vonden elkaar niet); duidelijk draaiende voorwielen in bovenaanzicht; cockpit 3x fijnere segmenten en camera verder naar achteren.
 - **Fix zichtbaarheid en online:** baanwissels gebeuren nu vlak voor je (zichtbaar), probeert beide richtingen; cockpitcamera verder naar achteren/hoger; online spookauto's vloeiend (volgnummers tegen dubbele/oude berichten, voorspelling met snelheid en zachte correctie).
 - **Meer power-ups:** magneet, schild, dubbele munten en mini erbij; power-ups vaker (16%).
+- **Gas en remmen op touch (iOS):** vinger hoog = gas, laag = remmen, met zichtbare zones.

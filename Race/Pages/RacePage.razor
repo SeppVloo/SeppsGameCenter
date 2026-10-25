@@ -66,7 +66,7 @@
         <summary>❓ Hoe speel je?</summary>
         <ul>
             <li>Kies een modus: <b>🚗 Solo</b> (eindeloos, zo ver mogelijk), <b>👥 Samen</b> (2 spelers op dit apparaat) of <b>🌐 Online</b> (tot 4 spelers met een kamercode). Samen en online is een race van <b>3 km</b>: wie het eerst bij de finish is wint.</li>
-            <li>@(_touch ? "Houd je vinger op de weg; je auto stuurt naar je vinger toe. Samen: ieder stuurt op zijn eigen helft." : "Stuur met ←/→ of A/D, gas met ↑/W, remmen met ↓/S. Samen: speler 1 A/D/W/S, speler 2 de pijltjes.")</li>
+            @(_touch ? "Houd je vinger op de weg; je auto stuurt naar je vinger toe. Vinger hoog op het scherm (boven de groene lijn) = gas, laag (onder de rode lijn) = remmen. Samen: ieder stuurt op zijn eigen helft."
             <li>Wissel tussen <b>🗺️ bovenaanzicht</b> en <b>🎥 cockpit</b> (in de auto) met de knop@(_touch ? "" : " of de V-toets").</li>
             <li>In <b>bochten</b> word je naar buiten geduwd, harder naarmate je sneller gaat: stuur tegen! Naast de weg (in het gras) ga je veel langzamer.</li>
             <li>Ontwijk de andere auto's (tussen twee auto's door over de lijn past niet!). Je hebt <b>@RaceEngine.StartLives levens</b> (❤️); na een botsing knipper je even en kun je niet geraakt worden. Andere spelers zijn spookauto's: daar bots je niet tegen.</li>
@@ -156,7 +156,7 @@
     private LocalPlayer Me => _players[0];
     private bool Busy => _players.Any(p => p.Engine.Status is RaceStatus.Countdown or RaceStatus.Running);
     private string Hint => _touch
-        ? (_mode == RaceMode.Duo ? "Ieder stuurt met een vinger op zijn eigen weg" : "Sleep je vinger om te sturen")
+        (_mode == RaceMode.Duo ? "Ieder stuurt met een vinger op zijn eigen weg · hoog = gas, laag = remmen" : "Sleep je vinger om te sturen · hoog = gas, laag = remmen")
         : (_mode == RaceMode.Duo ? "Speler 1: A/D/W/S · Speler 2: pijltjes · V = camera" : "←/→ of A/D sturen · ↑/W gas · ↓/S remmen · V = camera");
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

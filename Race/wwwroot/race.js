@@ -23,9 +23,12 @@ function onKeyUp(e) { keys.delete(e.key.toLowerCase()); }
 function onBlur() { keys.clear(); }
 
 function relX(c, e) { const r = c.getBoundingClientRect(); return (e.clientX - r.left) / r.width; }
+function relY(c, e) { const r = c.getBoundingClientRect(); return (e.clientY - r.top) / r.height; }
+// Touch: vinger in de bovenste zone = gas, onderste zone = remmen, ertussen = gewoon rijden.
+const GAS_ZONE = 0.4, BRAKE_ZONE = 0.75;
 function bindPointer(c, i) {
-    const down = e => { pointers.set(i, { id: e.pointerId, x: relX(c, e) }); c.setPointerCapture?.(e.pointerId); };
-    const move = e => { const p = pointers.get(i); if (p && p.id === e.pointerId) p.x = relX(c, e); };
+    const down = e => { pointers.set(i, { id: e.pointerId, x: relX(c, e), y: relY(c, e) }); c.setPointerCapture?.(e.pointerId); };
+    const move = e => { const p = pointers.get(i); if (p && p.id === e.pointerId) { p.x = relX(c, e); p.y = relY(c, e); } };
     const up = e => { const p = pointers.get(i); if (p && p.id === e.pointerId) pointers.delete(i); };
     c.addEventListener("pointerdown", down);
     c.addEventListener("pointermove", move);
@@ -46,11 +49,13 @@ function inputs(count) {
         const sets = count === 1 ? [["a", "arrowleft"], ["d", "arrowright"], ["w", "arrowup"], ["s", "arrowdown"]]
             : i === 0 ? [["a"], ["d"], ["w"], ["s"]] : [["arrowleft"], ["arrowright"], ["arrowup"], ["arrowdown"]];
         let steer = (has(...sets[1]) ? 1 : 0) - (has(...sets[0]) ? 1 : 0);
-        const throttle = (has(...sets[2]) ? 1 : 0) - (has(...sets[3]) ? 1 : 0);
+        const throttle0 = (has(...sets[2]) ? 1 : 0) - (has(...sets[3]) ? 1 : 0);
+        let throttle = throttle0;
         const p = pointers.get(i), f = frames[i];
         if (p && f) {
             const target = view === "cockpit" ? f.x + (p.x - 0.5) * 1.2 : (p.x - 0.1) / 0.8;
             steer = Math.max(-1, Math.min(1, (target - f.x) * 10));
+            if (!throttle0) throttle = p.y < GAS_ZONE ? 1 : p.y > BRAKE_ZONE ? -1 : 0;
         }
         out.push(steer, throttle);
     }
@@ -83,6 +88,7 @@ function loop(t) {
         if (view === "cockpit") drawCockpit(ctx, c.width, c.height, f, ghosts, sky);
         else drawTop(ctx, c.width, c.height, f, ghosts, PLAYER_COLORS[i % 4]);
         drawHud(ctx, c.width, c.height, f, canvases.length > 1 ? names[i] : "");
+        if (touch && f.status === "Running") drawPedals(ctx, c.width, c.height, pointers.get(i));
     });
 }
 
@@ -407,6 +413,25 @@ function drawCarBack(ctx, x, y, w, color, angle = 0, blink = 0) {
 }
 
 // ---------- HUD ----------
+
+const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+
+/** Zones voor gas (boven) en rem (onder) op touch-apparaten; de actieve zone licht op. */
+function drawPedals(ctx, W, H, p) {
+    const gas = p && p.y < GAS_ZONE, brake = p && p.y > BRAKE_ZONE;
+    ctx.font = "bold 15px system-ui, sans-serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillStyle = gas ? "rgba(74,222,128,.35)" : "rgba(74,222,128,.12)";
+    ctx.fillRect(0, H * GAS_ZONE - 3, W, 3);
+    ctx.fillStyle = brake ? "rgba(248,113,113,.35)" : "rgba(248,113,113,.12)";
+    ctx.fillRect(0, H * BRAKE_ZONE, W, 3);
+    ctx.globalAlpha = gas ? 1 : 0.55;
+    ctx.fillStyle = "#4ade80"; ctx.fillText("▲ GAS", W * 0.12, H * GAS_ZONE - 14);
+    ctx.globalAlpha = brake ? 1 : 0.55;
+    ctx.fillStyle = "#f87171"; ctx.fillText("▼ REM", W * 0.12, H * BRAKE_ZONE + 16);
+    ctx.globalAlpha = 1;
+    ctx.textAlign = "left";
+}
 
 function label(ctx, text, x, y) {
     if (!text) return;
