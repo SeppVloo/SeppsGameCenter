@@ -67,3 +67,4 @@
 - **Meer power-ups:** magneet, schild, dubbele munten en mini erbij; power-ups vaker (16%).
 - **Gas en remmen op touch (iOS):** vinger hoog = gas, laag = remmen, met zichtbare zones.
 - **Instellingen, spelersbotsing en eerlijke power-ups:** alles instelbaar (snelheid, verkeer, baanwissels, bochten, munten, power-ups, levens, racelengte, botsen) met presets; standaard minder verkeer (75%, minder dubbele rijen, 35% baanwissels i.p.v. 45%); spelers duwen elkaar opzij zonder leven te verliezen; een power-up is voor wie hem het eerst pakt.
+- **Schuifknoppen gerepareerd:** instellingen-schuifjes gebruiken een vaste notatie (punt als decimaalteken), zodat ze met Nederlandse taalinstelling niet meer naar het maximum of verder schieten.

@@ -86,16 +86,16 @@
                 <button class="race-btn ghost" @onclick="() => Preset(RaceSettings.Normal())">🚗 Normaal</button>
                 <button class="race-btn ghost" @onclick="() => Preset(RaceSettings.Hard())">🔥 Moeilijk</button>
             </div>
-            <label>Beginsnelheid <input type="range" min="0.5" max="2" step="0.1" @bind="_settings.StartSpeed" @bind:event="oninput" /> <b>@((int)(_settings.StartSpeed * 60)) km/u</b></label>
-            <label>Topsnelheid <input type="range" min="0.5" max="3.5" step="0.1" @bind="_settings.MaxSpeed" @bind:event="oninput" /> <b>@((int)(_settings.MaxSpeed * 60)) km/u</b></label>
-            <label>Sneller worden <input type="range" min="0" max="0.06" step="0.005" @bind="_settings.SpeedUp" @bind:event="oninput" /> <b>@(_settings.SpeedUp == 0 ? "uit" : $"{_settings.SpeedUp * 3600:0} km/u per min")</b></label>
-            <label>Verkeer <input type="range" min="0.2" max="2" step="0.05" @bind="_settings.Traffic" @bind:event="oninput" /> <b>@((int)(_settings.Traffic * 100))%</b></label>
-            <label>Baanwissels <input type="range" min="0" max="90" step="5" @bind="_settings.LaneChange" @bind:event="oninput" /> <b>@_settings.LaneChange%</b></label>
-            <label>Bochten <input type="range" min="0" max="2" step="0.1" @bind="_settings.Curves" @bind:event="oninput" /> <b>@((int)(_settings.Curves * 100))%</b></label>
-            <label>Munten <input type="range" min="0" max="2.5" step="0.1" @bind="_settings.Coins" @bind:event="oninput" /> <b>@((int)(_settings.Coins * 100))%</b></label>
-            <label>Power-ups <input type="range" min="0" max="4" step="0.1" @bind="_settings.PowerUps" @bind:event="oninput" /> <b>@((int)(_settings.PowerUps * 100))%</b></label>
-            <label>Levens <input type="range" min="1" max="9" step="1" @bind="_settings.Lives" @bind:event="oninput" /> <b>@_settings.Lives</b></label>
-            <label>Racelengte <input type="range" min="1" max="10" step="1" @bind="_settings.RaceKm" @bind:event="oninput" /> <b>@_settings.RaceKm km</b></label>
+            <label>Beginsnelheid <input type="range" min="0.5" max="2" step="0.1" @bind="_settings.StartSpeed" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@((int)(_settings.StartSpeed * 60)) km/u</b></label>
+            <label>Topsnelheid <input type="range" min="0.5" max="3.5" step="0.1" @bind="_settings.MaxSpeed" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@((int)(_settings.MaxSpeed * 60)) km/u</b></label>
+            <label>Sneller worden <input type="range" min="0" max="0.06" step="0.005" @bind="_settings.SpeedUp" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@(_settings.SpeedUp == 0 ? "uit" : $"{_settings.SpeedUp * 3600:0} km/u per min")</b></label>
+            <label>Verkeer <input type="range" min="0.2" max="2" step="0.05" @bind="_settings.Traffic" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@((int)(_settings.Traffic * 100))%</b></label>
+            <label>Baanwissels <input type="range" min="0" max="90" step="5" @bind="_settings.LaneChange" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@_settings.LaneChange%</b></label>
+            <label>Bochten <input type="range" min="0" max="2" step="0.1" @bind="_settings.Curves" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@((int)(_settings.Curves * 100))%</b></label>
+            <label>Munten <input type="range" min="0" max="2.5" step="0.1" @bind="_settings.Coins" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@((int)(_settings.Coins * 100))%</b></label>
+            <label>Power-ups <input type="range" min="0" max="4" step="0.1" @bind="_settings.PowerUps" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@((int)(_settings.PowerUps * 100))%</b></label>
+            <label>Levens <input type="range" min="1" max="9" step="1" @bind="_settings.Lives" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@_settings.Lives</b></label>
+            <label>Racelengte <input type="range" min="1" max="10" step="1" @bind="_settings.RaceKm" @bind:event="oninput" @bind:culture="System.Globalization.CultureInfo.InvariantCulture" /> <b>@_settings.RaceKm km</b></label>
             <label class="check"><input type="checkbox" @bind="_settings.PlayerCollision" /> Spelers botsen tegen elkaar</label>
             <small>Online gelden de instellingen van wie op start drukt.</small>
         </fieldset>
