@@ -266,7 +266,7 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
 
 function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     // Camera zit iets achter en boven de bestuurder met een bredere blik, zodat je meer van de zijkant ziet.
-    const hor = H * 0.45, fl = W * 0.7, camH = 0.32, BACK = 0.9;
+    const hor = H * 0.42, fl = W * 0.7, camH = 0.3, BACK = 0.6;
     const offRaw = offsets(f.curves);
     const off = d => offRaw(d) * COCKPIT_CURVE;
     const px = (u, d) => W / 2 + (u + off(d) - f.x) * fl / (d + BACK);
@@ -352,7 +352,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
 
     // Motorkap op de echte plek en breedte van je auto, zodat je kunt inschatten of je ergens langs past.
     {
-        const front = CAR_H / 2, rear = -0.55;
+        const front = CAR_H / 2, rear = -0.12;
         const lx = d => W / 2 + (-CAR_W / 2) * fl / (d + BACK), rx = d => W / 2 + (CAR_W / 2) * fl / (d + BACK);
         const yF = py(front), yR = py(rear), round = (rx(front) - lx(front)) * 0.12;
         ctx.fillStyle = "rgba(0,0,0,.35)";
@@ -375,17 +375,20 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
         ctx.fillRect(rx(front) - round - lw, yF + 1, lw, Math.max(2, lw * 0.25));
     }
 
-    // Dashboard en stuur
+    // Dashboard en stuur (dashboard begint waar de korte motorkap ophoudt)
+    const dashY = py(-0.12);
     ctx.fillStyle = "#0b1026";
     ctx.beginPath();
-    ctx.moveTo(0, H); ctx.lineTo(0, H * 0.84);
-    ctx.quadraticCurveTo(W / 2, H * 0.76, W, H * 0.84);
+    ctx.moveTo(0, H); ctx.lineTo(0, dashY - H * 0.02);
+    ctx.quadraticCurveTo(W / 2, dashY - H * 0.035, W, dashY - H * 0.02);
     ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
+    drawWindow(ctx, W, H, dashY);
+    drawMirror(ctx, W, H, f, ghosts);
     ctx.fillStyle = "#22d3ee";
     ctx.font = `bold ${Math.round(W * 0.06)}px system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(`${f.kmh} km/u`, W * 0.18, H * 0.9);
-    ctx.fillText("❤️".repeat(Math.max(0, f.lives)), W * 0.82, H * 0.9);
+    ctx.fillText(`${f.kmh} km/u`, W * 0.18, (dashY + H) / 2);
+    ctx.fillText("❤️".repeat(Math.max(0, f.lives)), W * 0.82, (dashY + H) / 2);
     ctx.save();
     ctx.translate(W / 2, H * 1.0);
     ctx.rotate(f.steer * 0.9);
@@ -400,6 +403,58 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
 
     if (f.blink) { ctx.fillStyle = "rgba(239,68,68,.25)"; ctx.fillRect(0, 0, W, H); }
     if (f.ghost > 0) { ctx.fillStyle = "rgba(196,181,253,.18)"; ctx.fillRect(0, 0, W, H); }
+}
+
+/** Voorruit: dak, schuine stijlen links/rechts en een lichte glans, zodat het lijkt of je door een raam kijkt. */
+function drawWindow(ctx, W, H, dashY) {
+    const roof = H * 0.07, pil = W * 0.09;
+    ctx.fillStyle = "#0b1026";
+    ctx.beginPath();
+    ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, roof * 1.4);
+    ctx.quadraticCurveTo(W / 2, roof * 0.6, 0, roof * 1.4); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(pil * 1.6, roof); ctx.lineTo(pil * 0.4, dashY); ctx.lineTo(0, dashY); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(W, 0); ctx.lineTo(W - pil * 1.6, roof); ctx.lineTo(W - pil * 0.4, dashY); ctx.lineTo(W, dashY); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#1e293b"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(pil * 1.6, roof); ctx.lineTo(pil * 0.4, dashY); ctx.moveTo(W - pil * 1.6, roof); ctx.lineTo(W - pil * 0.4, dashY); ctx.stroke();
+    const g = ctx.createLinearGradient(0, 0, W, dashY);
+    g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.45, "rgba(255,255,255,.07)"); g.addColorStop(0.55, "rgba(255,255,255,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(pil, roof, W - 2 * pil, dashY - roof);
+}
+
+/** Achteruitkijkspiegel: auto's achter je (die je net inhaalde of die achterop komen), gespiegeld. */
+function drawMirror(ctx, W, H, f, ghosts) {
+    const mw = W * 0.4, mh = H * 0.075, mx = W / 2 - mw / 2, my = H * 0.075, r = mh * 0.35;
+    ctx.fillStyle = "#111827";
+    ctx.fillRect(W / 2 - 3, 0, 6, my);
+    ctx.beginPath(); ctx.roundRect(mx - 4, my - 4, mw + 8, mh + 8, r + 4); ctx.fill();
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(mx, my, mw, mh, r); ctx.clip();
+    ctx.fillStyle = "#bae6fd"; ctx.fillRect(mx, my, mw, mh * 0.3);
+    ctx.fillStyle = "#166534"; ctx.fillRect(mx, my + mh * 0.3, mw, mh * 0.7);
+    const MAXD = 4, hor = my + mh * 0.3, fl = mw * 0.55;
+    // Gespiegeld: wat rechts achter je zit, zie je links in de spiegel.
+    const sx = (u, d) => W / 2 - (u - f.x) * fl / (d + 0.4);
+    const sy = d => hor + 0.3 * fl / (d + 0.4);
+    ctx.fillStyle = "#475569";
+    ctx.beginPath();
+    ctx.moveTo(sx(0, MAXD), sy(MAXD)); ctx.lineTo(sx(1, MAXD), sy(MAXD));
+    ctx.lineTo(sx(1, 0), sy(0)); ctx.lineTo(sx(0, 0), sy(0)); ctx.closePath(); ctx.fill();
+    const items = [];
+    for (let i = 0; i < f.cars.length; i += 4) items.push({ d: -f.cars[i], u: f.cars[i + 1], color: COLORS[f.cars[i + 2] % COLORS.length] });
+    for (const g of ghosts) items.push({ d: f.z - g.z, u: g.x, color: g.color });
+    items.filter(s => s.d > 0.05 && s.d < MAXD).sort((a, b) => b.d - a.d).forEach(s => {
+        const w = CAR_W * fl / (s.d + 0.4), h = w * 0.6, x = sx(s.u, s.d), y = sy(s.d);
+        ctx.fillStyle = s.color;
+        ctx.fillRect(x - w / 2, y - h, w, h);
+        ctx.fillStyle = "rgba(15,23,42,.7)";
+        ctx.fillRect(x - w * 0.35, y - h * 0.85, w * 0.7, h * 0.35);
+        ctx.fillStyle = "#fef9c3";
+        ctx.fillRect(x - w * 0.45, y - h * 0.35, w * 0.18, h * 0.15);
+        ctx.fillRect(x + w * 0.27, y - h * 0.35, w * 0.18, h * 0.15);
+    });
+    ctx.fillStyle = "rgba(255,255,255,.12)"; ctx.fillRect(mx, my, mw, mh * 0.4);
+    ctx.restore();
 }
 
 function drawCarBack(ctx, x, y, w, color, angle = 0, blink = 0) {

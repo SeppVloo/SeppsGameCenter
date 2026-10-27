@@ -1,4 +1,4 @@
-namespace Race.Game;
+﻿namespace Race.Game;
 
 public enum RaceStatus { Ready, Countdown, Running, Finished, GameOver }
 
@@ -77,7 +77,7 @@ public sealed class RaceEngine
     public const double MagnetSeconds = 8;
     public const double DoubleSeconds = 10;
     public const double ShrinkSeconds = 7;
-    private const double ViewBehind = 1.5;
+    private const double ViewBehind = 4; // ook voor de achteruitkijkspiegel
 
     private readonly List<TrafficCar> _cars = [];
     private readonly List<Coin> _coins = [];
