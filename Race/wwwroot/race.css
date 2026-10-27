@@ -1,4 +1,4 @@
-.race { max-width: 480px; margin: 0 auto; padding: 1rem; display: flex; flex-direction: column; gap: .8rem; user-select: none; }
+.race { max-width: 1100px; margin: 0 auto; padding: 1rem; display: flex; flex-direction: column; gap: .8rem; user-select: none; }
 .race-head { display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; }
 .race-back { color: var(--muted, #94a3b8); text-decoration: none; font-size: .9rem; }
 .race-logo { margin: 0; flex: 1; font-size: 2.6rem; font-weight: 900; font-style: italic; background: linear-gradient(90deg, #22d3ee, #4ade80); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -29,7 +29,7 @@
 .race-best { color: #fde047; font-weight: 700; }
 @keyframes race-fade { from { opacity: 0; } }
 
-.race.wide { max-width: 900px; }
+.race.wide { max-width: 1400px; }
 .race-btn.ghost { background: rgba(255,255,255,.12); color: inherit; }
 .race-btn:disabled, .race-seg button:disabled { opacity: .5; cursor: default; }
 .race-seg { display: flex; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); border-radius: 10px; overflow: hidden; }
@@ -49,3 +49,4 @@
 .race-results li.me b { color: #22d3ee; }
 .race-results span { color: var(--muted, #94a3b8); margin-left: .4rem; }
 .race-track.duo { width: min(100%, calc(72vh * 20 / 16)); aspect-ratio: 20 / 16; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+@media (min-width: 700px) and (pointer: fine) { .race-track:not(.duo) { width: min(100%, calc(74vh * 16 / 10)); aspect-ratio: 16 / 10; } .race-track.duo { width: 100%; aspect-ratio: 2 / 1; } }

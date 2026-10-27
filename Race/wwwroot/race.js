@@ -53,7 +53,7 @@ function inputs(count) {
         let throttle = throttle0;
         const p = pointers.get(i), f = frames[i];
         if (p && f) {
-            const target = view === "cockpit" ? f.x + (p.x - 0.5) * 1.2 : (p.x - 0.1) / 0.8;
+            const target = view === "cockpit" ? f.x + (p.x - 0.5) * 1.2 : (() => { const c = canvases[i], k = topK(c.width, c.height); return (p.x * c.width - (c.width - k) / 2) / k; })();
             steer = Math.max(-1, Math.min(1, (target - f.x) * 10));
             if (!throttle0) throttle = p.y < GAS_ZONE ? 1 : p.y > BRAKE_ZONE ? -1 : 0;
         }
@@ -67,6 +67,10 @@ function loop(t) {
     const dt = last ? Math.min((t - last) / 1000, 0.1) : 0;
     last = t;
     if (!dotnet) return;
+    for (const c of canvases) {
+        const w = Math.round(c.height * c.clientWidth / Math.max(1, c.clientHeight));
+        if (c.clientHeight && Math.abs(c.width - w) > 2) c.width = w;
+    }
     const remote = online && net ? net.ghosts() : [];
     try {
         frames = dotnet.invokeMethod("Tick", dt, inputs(Math.max(1, canvases.length)), remote.flatMap(g => [g.z, g.x]));
@@ -179,8 +183,10 @@ function drawPowerUp(ctx, x, y, r, kind) {
     ctx.textAlign = "left";
 }
 
+function topK(W, H) { return Math.min(0.8 * W, 0.5 * H); }
+
 function drawTop(ctx, W, H, f, ghosts, myColor) {
-    const k = 0.8 * W, ox = 0.1 * W, py = H * 0.78;
+    const k = topK(W, H), ox = (W - k) / 2, py = H * 0.78;
     const off = offsets(f.curves);
     const sx = (u, dz) => ox + (u + off(dz)) * k;
     const sy = dz => py - dz * k;
@@ -266,7 +272,7 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
 
 function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     // Camera zit iets achter en boven de bestuurder met een bredere blik, zodat je meer van de zijkant ziet.
-    const hor = H * 0.42, fl = W * 0.7, camH = 0.3, BACK = 0.6;
+    const S = Math.min(W, H * 0.625), hor = H * 0.42, fl = S * 0.7, camH = 0.3, BACK = 0.6;
     const offRaw = offsets(f.curves);
     const off = d => offRaw(d) * COCKPIT_CURVE;
     const px = (u, d) => W / 2 + (u + off(d) - f.x) * fl / (d + BACK);
@@ -352,7 +358,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
 
     // Motorkap op de echte plek en breedte van je auto, zodat je kunt inschatten of je ergens langs past.
     {
-        const front = CAR_H / 2, rear = -0.12;
+        const front = CAR_H / 2, rear = 0.02;
         const lx = d => W / 2 + (-CAR_W / 2) * fl / (d + BACK), rx = d => W / 2 + (CAR_W / 2) * fl / (d + BACK);
         const yF = py(front), yR = py(rear), round = (rx(front) - lx(front)) * 0.12;
         ctx.fillStyle = "rgba(0,0,0,.35)";
@@ -376,7 +382,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     }
 
     // Dashboard en stuur (dashboard begint waar de korte motorkap ophoudt)
-    const dashY = py(-0.12);
+    const dashY = py(0.02);
     ctx.fillStyle = "#0b1026";
     ctx.beginPath();
     ctx.moveTo(0, H); ctx.lineTo(0, dashY - H * 0.02);
@@ -385,19 +391,19 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     drawWindow(ctx, W, H, dashY);
     drawMirror(ctx, W, H, f, ghosts);
     ctx.fillStyle = "#22d3ee";
-    ctx.font = `bold ${Math.round(W * 0.06)}px system-ui, sans-serif`;
+    ctx.font = `bold ${Math.round(S * 0.06)}px system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(`${f.kmh} km/u`, W * 0.18, (dashY + H) / 2);
     ctx.fillText("❤️".repeat(Math.max(0, f.lives)), W * 0.82, (dashY + H) / 2);
     ctx.save();
     ctx.translate(W / 2, H * 1.0);
     ctx.rotate(f.steer * 0.9);
-    ctx.strokeStyle = "#111827"; ctx.lineWidth = W * 0.05;
-    ctx.beginPath(); ctx.arc(0, 0, W * 0.24, 0, Math.PI * 2); ctx.stroke();
-    ctx.lineWidth = W * 0.035;
-    ctx.beginPath(); ctx.moveTo(-W * 0.24, 0); ctx.lineTo(W * 0.24, 0); ctx.moveTo(0, 0); ctx.lineTo(0, -W * 0.24); ctx.stroke();
+    ctx.strokeStyle = "#111827"; ctx.lineWidth = S * 0.05;
+    ctx.beginPath(); ctx.arc(0, 0, S * 0.24, 0, Math.PI * 2); ctx.stroke();
+    ctx.lineWidth = S * 0.035;
+    ctx.beginPath(); ctx.moveTo(-S * 0.24, 0); ctx.lineTo(S * 0.24, 0); ctx.moveTo(0, 0); ctx.lineTo(0, -S * 0.24); ctx.stroke();
     ctx.fillStyle = "#22d3ee";
-    ctx.beginPath(); ctx.arc(0, -W * 0.24, W * 0.015, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(0, -S * 0.24, S * 0.015, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
     ctx.textAlign = "left";
 
@@ -424,7 +430,7 @@ function drawWindow(ctx, W, H, dashY) {
 
 /** Achteruitkijkspiegel: auto's achter je (die je net inhaalde of die achterop komen), gespiegeld. */
 function drawMirror(ctx, W, H, f, ghosts) {
-    const mw = W * 0.4, mh = H * 0.075, mx = W / 2 - mw / 2, my = H * 0.075, r = mh * 0.35;
+    const mw = Math.min(W * 0.4, H * 0.3), mh = H * 0.075, mx = W / 2 - mw / 2, my = H * 0.075, r = mh * 0.35;
     ctx.fillStyle = "#111827";
     ctx.fillRect(W / 2 - 3, 0, 6, my);
     ctx.beginPath(); ctx.roundRect(mx - 4, my - 4, mw + 8, mh + 8, r + 4); ctx.fill();
