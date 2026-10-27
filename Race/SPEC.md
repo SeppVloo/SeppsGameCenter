@@ -68,3 +68,4 @@
 - **Gas en remmen op touch (iOS):** vinger hoog = gas, laag = remmen, met zichtbare zones.
 - **Instellingen, spelersbotsing en eerlijke power-ups:** alles instelbaar (snelheid, verkeer, baanwissels, bochten, munten, power-ups, levens, racelengte, botsen) met presets; standaard minder verkeer (75%, minder dubbele rijen, 35% baanwissels i.p.v. 45%); spelers duwen elkaar opzij zonder leven te verliezen; een power-up is voor wie hem het eerst pakt.
 - **Schuifknoppen gerepareerd:** instellingen-schuifjes gebruiken een vaste notatie (punt als decimaalteken), zodat ze met Nederlandse taalinstelling niet meer naar het maximum of verder schieten.
+- **Motorkap in cockpit:** in cockpitmodus zie je de voorkant van je eigen auto (in je spelerkleur, met koplampen) op de echte plek en breedte, zodat je kunt inschatten of je ergens langs past.

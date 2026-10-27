@@ -86,7 +86,7 @@ function loop(t) {
         const ctx = c.getContext("2d");
         const sky = (skies.get(i) ?? 0) + f.curves[0] * (f.kmh / 60) * dt * 0.4;
         skies.set(i, sky);
-        if (view === "cockpit") drawCockpit(ctx, c.width, c.height, f, ghosts, sky);
+        if (view === "cockpit") drawCockpit(ctx, c.width, c.height, f, ghosts, sky, PLAYER_COLORS[i % 4]);
         else drawTop(ctx, c.width, c.height, f, ghosts, PLAYER_COLORS[i % 4]);
         drawHud(ctx, c.width, c.height, f, canvases.length > 1 ? names[i] : "");
         if (touch && f.status === "Running") drawPedals(ctx, c.width, c.height, pointers.get(i));
@@ -264,7 +264,7 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
 
 // ---------- Cockpit (pseudo-3D) ----------
 
-function drawCockpit(ctx, W, H, f, ghosts, sky) {
+function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     // Camera zit iets achter en boven de bestuurder met een bredere blik, zodat je meer van de zijkant ziet.
     const hor = H * 0.45, fl = W * 0.7, camH = 0.32, BACK = 0.9;
     const offRaw = offsets(f.curves);
@@ -349,6 +349,31 @@ function drawCockpit(ctx, W, H, f, ghosts, sky) {
         ctx.globalAlpha = 1;
         if (s.kind === "ghost") label(ctx, s.name, x, y - CAR_W * scale);
     });
+
+    // Motorkap op de echte plek en breedte van je auto, zodat je kunt inschatten of je ergens langs past.
+    {
+        const front = CAR_H / 2, rear = -0.55;
+        const lx = d => W / 2 + (-CAR_W / 2) * fl / (d + BACK), rx = d => W / 2 + (CAR_W / 2) * fl / (d + BACK);
+        const yF = py(front), yR = py(rear), round = (rx(front) - lx(front)) * 0.12;
+        ctx.fillStyle = "rgba(0,0,0,.35)";
+        ctx.fillRect(lx(front) - 2, yF - 2, rx(front) - lx(front) + 4, 6);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(lx(rear), yR);
+        ctx.lineTo(lx(front), yF + round);
+        ctx.quadraticCurveTo(lx(front), yF, lx(front) + round, yF);
+        ctx.lineTo(rx(front) - round, yF);
+        ctx.quadraticCurveTo(rx(front), yF, rx(front), yF + round);
+        ctx.lineTo(rx(rear), yR);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,.22)";
+        const m = (lx(front) + rx(front)) / 2, mw = (rx(front) - lx(front)) * 0.12;
+        ctx.beginPath(); ctx.moveTo(m - mw, yF + 2); ctx.lineTo(m + mw, yF + 2); ctx.lineTo(W / 2 + mw * 3, yR); ctx.lineTo(W / 2 - mw * 3, yR); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = "#fef9c3";
+        const lw = (rx(front) - lx(front)) * 0.16;
+        ctx.fillRect(lx(front) + round, yF + 1, lw, Math.max(2, lw * 0.25));
+        ctx.fillRect(rx(front) - round - lw, yF + 1, lw, Math.max(2, lw * 0.25));
+    }
 
     // Dashboard en stuur
     ctx.fillStyle = "#0b1026";
