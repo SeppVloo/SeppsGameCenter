@@ -49,4 +49,4 @@
 .race-results li.me b { color: #22d3ee; }
 .race-results span { color: var(--muted, #94a3b8); margin-left: .4rem; }
 .race-track.duo { width: min(100%, calc(72vh * 20 / 16)); aspect-ratio: 20 / 16; display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-@media (min-width: 700px) and (pointer: fine) { .race-track:not(.duo) { width: min(100%, calc(74vh * 16 / 10)); aspect-ratio: 16 / 10; } .race-track.duo { width: 100%; aspect-ratio: 2 / 1; } }
+@media (min-width: 700px) and (pointer: fine) { .race-track:not(.duo) { width: min(100%, calc(60vh * 16 / 10)); aspect-ratio: 16 / 10; } .race-track.duo { width: min(100%, calc(60vh * 2)); aspect-ratio: 2 / 1; } }
