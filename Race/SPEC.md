@@ -74,3 +74,4 @@
 - **Laptop-hoogte:** breed speelveld is maximaal 60% van de schermhoogte, zodat het past (was hoger dan het oude staande veld).
 - **Kleiner speelveld op laptops:** breed veld max 760 px breed en 52% schermhoogte (samen max 1000 px), pagina max 820 px.
 - **Past in hoogte:** help en instellingen staan onder het speelveld; op laptops compactere kop en minder ruimte, zodat het veld volledig in beeld past.
+- **Cockpit lager en HUD zichtbaar:** camera lager (hoogte 0,17 i.p.v. 0,3); levens en snelheid staan ook in cockpit linksboven (waren onzichtbaar op het dashboard). Speelveld op laptops max 40% schermhoogte zodat het op 100% zoom past.

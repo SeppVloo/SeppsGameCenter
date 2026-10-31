@@ -272,7 +272,7 @@ function drawTop(ctx, W, H, f, ghosts, myColor) {
 
 function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     // Camera zit iets achter en boven de bestuurder met een bredere blik, zodat je meer van de zijkant ziet.
-    const S = Math.min(W, H * 0.625), hor = H * 0.42, fl = S * 0.7, camH = 0.3, BACK = 0.6;
+    const S = Math.min(W, H * 0.625), hor = H * 0.4, fl = S * 0.7, camH = 0.17, BACK = 0.6;
     const offRaw = offsets(f.curves);
     const off = d => offRaw(d) * COCKPIT_CURVE;
     const px = (u, d) => W / 2 + (u + off(d) - f.x) * fl / (d + BACK);
@@ -393,8 +393,6 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     ctx.fillStyle = "#22d3ee";
     ctx.font = `bold ${Math.round(S * 0.06)}px system-ui, sans-serif`;
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
-    ctx.fillText(`${f.kmh} km/u`, W * 0.18, (dashY + H) / 2);
-    ctx.fillText("❤️".repeat(Math.max(0, f.lives)), W * 0.82, (dashY + H) / 2);
     ctx.save();
     ctx.translate(W / 2, H * 1.0);
     ctx.rotate(f.steer * 0.9);
@@ -532,7 +530,7 @@ function label(ctx, text, x, y) {
 function drawHud(ctx, W, H, f, name) {
     ctx.textBaseline = "middle";
     ctx.font = "bold 18px system-ui, sans-serif";
-    if (view !== "cockpit") {
+    {
         ctx.fillStyle = "rgba(11,16,38,.6)";
         roundRect(ctx, 10, 10, 150, 34, 8);
         ctx.fillStyle = "#fff";
