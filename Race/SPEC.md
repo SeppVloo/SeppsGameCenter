@@ -73,3 +73,4 @@
 - **Breder op laptops en kortere neus:** op schermen met muis (>= 700 px) is het speelveld 16:10 (samen 2:1) en de pagina tot 1100 px breed; canvasbreedte volgt de getoonde verhouding. Bovenaanzicht houdt dezelfde wegbreedte (gecentreerd, gras ernaast), cockpit schaalt op hoogte en laat meer zijkant zien. Motorkap nog korter (tot 0,02 voor je i.p.v. 0,12 achter).
 - **Laptop-hoogte:** breed speelveld is maximaal 60% van de schermhoogte, zodat het past (was hoger dan het oude staande veld).
 - **Kleiner speelveld op laptops:** breed veld max 760 px breed en 52% schermhoogte (samen max 1000 px), pagina max 820 px.
+- **Past in hoogte:** help en instellingen staan onder het speelveld; op laptops compactere kop en minder ruimte, zodat het veld volledig in beeld past.
