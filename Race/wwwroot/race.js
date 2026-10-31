@@ -339,7 +339,10 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     for (const gh of ghosts)
         sprites.push({ d: gh.z - f.z, u: gh.x, kind: "ghost", color: gh.color, name: gh.name });
     sprites.filter(s => s.d > NEAR + 0.1 && s.d < 30).sort((a, b) => b.d - a.d).forEach(s => {
-        const x = px(s.u, s.d), y = py(s.d), scale = fl / (s.d + BACK);
+        // In cockpit tonen we auto's een tikje dichterbij dan hun centrumafstand,
+        // zodat visueel contact beter overeenkomt met de botsing in de engine.
+        const d = s.kind === "car" || s.kind === "ghost" ? s.d - CAR_H * 0.38 : s.d;
+        const x = px(s.u, d), y = py(d), scale = fl / (d + BACK);
         if (s.kind === "pu") { const r = COIN_R * 1.4 * scale; drawPowerUp(ctx, x, y - r * 1.6, r, s.pu); return; }
         if (s.kind === "coin") {
             const r = COIN_R * scale;
@@ -352,13 +355,18 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
         if (s.kind === "ghost") ctx.globalAlpha = 0.55;
         const ang = Math.max(-0.5, Math.min(0.5, Math.atan(offRaw.slope(s.d)) * 0.6));
         drawCarBack(ctx, x, y, CAR_W * scale, s.color, ang, s.blink);
+        if (s.kind === "car" && s.d < 0.35)
+        {
+            ctx.fillStyle = "rgba(248,113,113,.17)";
+            ctx.fillRect(x - CAR_W * scale * 0.7, y - CAR_W * scale * 1.2, CAR_W * scale * 1.4, CAR_W * scale * 1.3);
+        }
         ctx.globalAlpha = 1;
         if (s.kind === "ghost") label(ctx, s.name, x, y - CAR_W * scale);
     });
 
     // Motorkap op de echte plek en breedte van je auto, zodat je kunt inschatten of je ergens langs past.
     {
-        const front = CAR_H / 2, rear = 0.02;
+        const front = CAR_H * 0.42, rear = 0.07;
         const lx = d => W / 2 + (-CAR_W / 2) * fl / (d + BACK), rx = d => W / 2 + (CAR_W / 2) * fl / (d + BACK);
         const yF = py(front), yR = py(rear), round = (rx(front) - lx(front)) * 0.12;
         ctx.fillStyle = "rgba(0,0,0,.35)";
@@ -382,7 +390,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
     }
 
     // Dashboard en stuur (dashboard begint waar de korte motorkap ophoudt)
-    const dashY = py(0.02);
+    const dashY = py(0.07);
     ctx.fillStyle = "#0b1026";
     ctx.beginPath();
     ctx.moveTo(0, H); ctx.lineTo(0, dashY - H * 0.02);
@@ -411,7 +419,7 @@ function drawCockpit(ctx, W, H, f, ghosts, sky, color = "#22d3ee") {
 
 /** Voorruit: dak, schuine stijlen links/rechts en een lichte glans, zodat het lijkt of je door een raam kijkt. */
 function drawWindow(ctx, W, H, dashY) {
-    const roof = H * 0.07, pil = W * 0.09;
+    const roof = H * 0.07, pil = W * 0.09; dashY = Math.max(dashY, H * 0.5);
     ctx.fillStyle = "#0b1026";
     ctx.beginPath();
     ctx.moveTo(0, 0); ctx.lineTo(W, 0); ctx.lineTo(W, roof * 1.4);
@@ -556,8 +564,8 @@ function drawHud(ctx, W, H, f, name) {
         ctx.font = `900 ${Math.round(W * (big.length > 2 ? 0.1 : 0.25))}px system-ui, sans-serif`;
         ctx.fillStyle = "#fde047";
         ctx.strokeStyle = "#0b1026"; ctx.lineWidth = 6;
-        ctx.strokeText(big, W / 2, H * 0.3);
-        ctx.fillText(big, W / 2, H * 0.3);
+        ctx.strokeText(big, W / 2, view === "cockpit" ? H * 0.4 : H * 0.3);
+        ctx.fillText(big, W / 2, view === "cockpit" ? H * 0.4 : H * 0.3);
     }
     ctx.textAlign = "left";
 }

@@ -75,3 +75,4 @@
 - **Kleiner speelveld op laptops:** breed veld max 760 px breed en 52% schermhoogte (samen max 1000 px), pagina max 820 px.
 - **Past in hoogte:** help en instellingen staan onder het speelveld; op laptops compactere kop en minder ruimte, zodat het veld volledig in beeld past.
 - **Cockpit lager en HUD zichtbaar:** camera lager (hoogte 0,17 i.p.v. 0,3); levens en snelheid staan ook in cockpit linksboven (waren onzichtbaar op het dashboard). Speelveld op laptops max 40% schermhoogte zodat het op 100% zoom past.
+- **Cockpit-botsing duidelijker:** auto's worden in cockpit visueel ~0,08 baan-eenheid dichterbij getekend (ongeveer 0,38 autolengte), zodat de botsing beter overeenkomt met wat je ziet; zeer nabije auto's krijgen een subtiele rode waarschuwingsgloed. Motorkap/dash sluiten op elkaar aan (front 0,42*autolengte, dash bij 0,07).
