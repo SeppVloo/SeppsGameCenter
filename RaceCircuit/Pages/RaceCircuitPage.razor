@@ -1,30 +1,96 @@
 @page "/race-circuit"
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 
-<PageTitle>Race Circuit (Unity) – Sepps GameCenter</PageTitle>
+<PageTitle>Race Circuit – Sepps GameCenter</PageTitle>
 
 <div class="rc-wrap">
-    <div class="rc-topbar">
-        <a class="rc-back" href="./">← GameCenter</a>
-        <h1>RACE CIRCUIT · UNITY</h1>
-        <a class="rc-open" href="_content/RaceCircuit/unity/racecircuit/index.html" target="_blank" rel="noopener noreferrer">Open los</a>
+    <canvas class="rc-canvas" @ref="_canvas"></canvas>
+
+    <div class="rc-overlay">
+        <div class="rc-topbar">
+            <a class="rc-back" href="./">← GameCenter</a>
+            <h1>RACE CIRCUIT · 3D</h1>
+            <div class="rc-actions">
+                <label>
+                    Echte spelers
+                    <select @bind="_humanPlayers" @bind:after="Restart">
+                        @for (var i = 1; i <= 4; i++)
+                        {
+                            <option value="@i">@i</option>
+                        }
+                    </select>
+                </label>
+                <button @onclick="Restart">Nieuwe race</button>
+            </div>
+        </div>
+
+        <div class="rc-status">@_status</div>
+
+        <details class="rc-help">
+            <summary>❓ Hoe speel je?</summary>
+            <ul>
+                <li>Je rijdt op een 3D-circuit met <b>4 banen</b> en altijd <b>4 karts</b>.</li>
+                <li>Kies 1 t/m 4 echte spelers; de rest wordt automatisch door de computer bestuurd.</li>
+                <li>Speler 1-4 besturing: <b>WASD</b>, <b>Pijltjes</b>, <b>IJKL</b>, <b>TGFH</b>.</li>
+                <li>Doel: als eerste 3 rondes afmaken.</li>
+                <li>Blijf uit contact en kies slim je baan om in te halen.</li>
+            </ul>
+        </details>
     </div>
-
-    <iframe
-        class="rc-unity"
-        src="_content/RaceCircuit/unity/racecircuit/index.html"
-        title="Race Circuit Unity WebGL"
-        loading="eager"
-        allow="fullscreen; autoplay"
-        referrerpolicy="no-referrer">
-    </iframe>
-
-    <details class="rc-help">
-        <summary>❓ Hoe speel je?</summary>
-        <ul>
-            <li>Deze pagina laadt de <b>Unity WebGL</b>-versie van Race Circuit.</li>
-            <li>Gebruik in Unity dezelfde regels: <b>4 banen</b>, <b>4 karts</b>, en lege plekken laten opvullen door de computer.</li>
-            <li>Als je nog geen Unity build-bestanden hebt gekopieerd, zie de README in <code>RaceCircuit/wwwroot/unity/racecircuit</code>.</li>
-            <li>Werkt het niet in deze pagina? Gebruik de knop <b>Open los</b>.</li>
-        </ul>
-    </details>
 </div>
+
+@code {
+    private ElementReference _canvas;
+    private IJSObjectReference? _js;
+    private DotNetObjectReference<RaceCircuitPage>? _self;
+    private int _humanPlayers = 1;
+    private string _status = "Klaar voor de start";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _js = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/RaceCircuit/racecircuit.js");
+            _self = DotNetObjectReference.Create(this);
+            await _js.InvokeVoidAsync("init", _canvas, _self);
+            await _js.InvokeVoidAsync("startRace", _humanPlayers);
+        }
+        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
+        {
+            _status = $"Starten mislukt: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+
+    private async Task Restart()
+    {
+        if (_js is null) return;
+        await _js.InvokeVoidAsync("startRace", _humanPlayers);
+    }
+
+    [JSInvokable]
+    public Task SetStatus(string status)
+    {
+        _status = status;
+        StateHasChanged();
+        return Task.CompletedTask;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_js is not null)
+            {
+                await _js.InvokeVoidAsync("dispose");
+                await _js.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+        _self?.Dispose();
+    }
+}

@@ -137,3 +137,4 @@ drone-show met afwisseling.
 - Race Circuit: gameplay aangepast naar snellere arcade-stijl met agressievere AI, verkeer-obstakels, boost pads en contact-duw tussen voertuigen.
 - Race Circuit: visuals herwerkt naar follow-camera op de eigen kart met perspectiefweg, rijkere baanomgeving en HUD/minimap.
 - Race Circuit: gemigreerd naar Unity WebGL-hosting (iframe naar `_content/RaceCircuit/unity/racecircuit/index.html`); oude custom canvas/JS implementatie verwijderd.
+- Race Circuit: Unity-host vervangen door een direct speelbare Babylon.js 3D race in de site (4 banen, 4 karts, lokale spelers + AI).

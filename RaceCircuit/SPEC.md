@@ -2,30 +2,32 @@
 
 ## Overzicht
 - Route: `/race-circuit` in Sepps GameCenter.
-- De pagina host nu een **Unity WebGL** build in een fullscreen iframe.
-- Oude custom canvas-implementatie is verwijderd.
+- Fullscreen 3D racegame met **Babylon.js** (in-browser).
+- Altijd 4 banen en 4 karts.
 
-## Gameplay-doel (Unity build)
-- Racegame met 4 banen en 4 karts.
-- Echte spelers vullen beschikbare plekken; overige karts worden door AI bestuurd.
-- Camera mag op de eigen kart focussen (niet het hele circuit tegelijk in beeld).
+## Gameplay
+- 1 t/m 4 echte spelers op hetzelfde apparaat.
+- Niet-gevulde plekken worden automatisch bestuurd door AI.
+- Doel: als eerste 3 rondes finishen.
+- Volgcamera achter de eigen kart.
+- Contact tussen karts geeft lichte duw en snelheidsverlies.
+
+## Besturing
+- Speler 1: W/A/S/D
+- Speler 2: pijltjestoetsen
+- Speler 3: I/J/K/L
+- Speler 4: T/F/G/H
 
 ## UI
-- Topbar met terugknop en "Open los" link naar de Unity hostpagina.
-- Inklapbare hulp: **❓ Hoe speel je?** met uitleg over Unity build-bestanden.
-- Fallbackmelding als de Unity build nog niet aanwezig is.
+- Topbar met terugknop, spelerskeuze en knop "Nieuwe race".
+- Statusregel met positie, ronde en snelheid.
+- Inklapbare hulp: **❓ Hoe speel je?**
 
 ## Architectuur
 - Razor Class Library `RaceCircuit`.
-- `Pages/RaceCircuitPage.razor`: hostpagina met iframe naar `_content/RaceCircuit/unity/racecircuit/index.html`.
-- `wwwroot/racecircuit.css`: fullscreen hostlayout + help-paneel.
-- `wwwroot/unity/racecircuit/index.html`: Unity bootstrap/fallback.
-- `wwwroot/unity/racecircuit/README.md`: instructies om Unity WebGL build-bestanden te plaatsen.
-
-## Buildbestanden (Unity)
-Plaats output van Unity WebGL build in:
-- `RaceCircuit/wwwroot/unity/racecircuit/Build/`
-- `RaceCircuit/wwwroot/unity/racecircuit/StreamingAssets/` (indien gebruikt)
+- `Pages/RaceCircuitPage.razor`: pagina met canvas + JS-interop.
+- `wwwroot/racecircuit.js`: Babylon scene, karts, AI, camera en race-loop.
+- `wwwroot/racecircuit.css`: fullscreen canvas layout + overlays.
 
 ## Changelog
-- **Unity migratie:** RaceCircuit omgezet van custom canvas-game naar Unity WebGL host; oude JS-rendering verwijderd; fallback en build-instructies toegevoegd.
+- **Babylon migratie:** Unity-host verwijderd en vervangen door een direct speelbare Babylon.js 3D race-implementatie met 4 banen, 4 karts, lokale spelers en AI-opvulling.
