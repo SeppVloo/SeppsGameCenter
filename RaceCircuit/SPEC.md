@@ -11,7 +11,11 @@
 - Elke kart rijdt 3 rondes.
 - Hoogste positie bepaalt de tussenstand; eerste over de finish wint.
 - Menselijke spelers kunnen van baan wisselen en gas/remmen.
-- Computerkarts rijden automatisch en zoeken waar mogelijk vrije banen.
+- Computerkarts rijden automatisch en zoeken agressief naar vrije banen.
+- Arcadestijl: hogere topsnelheid, snellere stuurreactie en meer druk in gevechten om positie.
+- Verkeer (oranje obstakels) rijdt over het circuit; botsen kost snelheid en duwt je opzij.
+- Blauwe boost pads geven kort extra snelheid.
+- Kart-tegen-kart contact geeft lichte duw/instabiliteit in plaats van directe uitschakeling.
 
 ## Besturing
 - Speler 1: W/A/S/D
@@ -32,3 +36,4 @@
 
 ## Changelog
 - **Basis toegevoegd:** nieuw project RaceCircuit met full-screen top-down circuit, 4 banen, 4 karts, lokale spelersselectie en AI-opvulling, plus in-game helptekst.
+- **Arcade update:** rijgedrag sneller en directer gemaakt, AI agressiever, verkeer-obstakels en boost pads toegevoegd, en contact-effecten tussen voertuigen toegevoegd.
