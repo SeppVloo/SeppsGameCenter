@@ -1,106 +1,30 @@
 @page "/race-circuit"
-@implements IAsyncDisposable
-@inject IJSRuntime JS
 
-<PageTitle>Race Circuit – Sepps GameCenter</PageTitle>
+<PageTitle>Race Circuit (Unity) – Sepps GameCenter</PageTitle>
 
 <div class="rc-wrap">
-    <canvas class="rc-canvas" @ref="_canvas"></canvas>
-
-    <div class="rc-overlay">
-        <div class="rc-topbar">
-            <a class="rc-back" href="./">← GameCenter</a>
-            <h1>RACE CIRCUIT</h1>
-            <div class="rc-actions">
-                <label>
-                    Echte spelers
-                    <select @bind="_humanPlayers" @bind:after="OnPlayerCountChanged">
-                        @for (var i = 1; i <= 4; i++)
-                        {
-                            <option value="@i">@i</option>
-                        }
-                    </select>
-                </label>
-                <button @onclick="Restart">Nieuwe race</button>
-            </div>
-        </div>
-
-        <div class="rc-status">
-            <span>@_status</span>
-        </div>
-
-        <details class="rc-help">
-            <summary>❓ Hoe speel je?</summary>
-            <ul>
-                <li>De camera volgt je eigen kart; je ziet dus vooral de weg voor je in plaats van het hele circuit.</li>
-                <li>Je racet altijd met <b>4 karts</b> op <b>4 banen</b> in snelle arcade-stijl.</li>
-                <li>Kies hoeveel echte spelers meedoen (1 t/m 4). Overige karts worden automatisch door de computer bestuurd.</li>
-                <li>Doel: rijd 3 rondes en finish als eerste.</li>
-                <li>Besturing spelers 1-4: <b>WASD</b>, <b>Pijltjes</b>, <b>IJKL</b>, <b>TGFH</b> (omhoog = gas, omlaag = rem, links/rechts = sturen).</li>
-                <li>Ontwijk verkeer op de baan en pak blauwe <b>boost pads</b> voor extra snelheid.</li>
-                <li>Contact met verkeer of andere karts duwt je opzij en kost snelheid, dus positionering is belangrijk.</li>
-            </ul>
-        </details>
+    <div class="rc-topbar">
+        <a class="rc-back" href="./">← GameCenter</a>
+        <h1>RACE CIRCUIT · UNITY</h1>
+        <a class="rc-open" href="_content/RaceCircuit/unity/racecircuit/index.html" target="_blank" rel="noopener noreferrer">Open los</a>
     </div>
+
+    <iframe
+        class="rc-unity"
+        src="_content/RaceCircuit/unity/racecircuit/index.html"
+        title="Race Circuit Unity WebGL"
+        loading="eager"
+        allow="fullscreen; autoplay"
+        referrerpolicy="no-referrer">
+    </iframe>
+
+    <details class="rc-help">
+        <summary>❓ Hoe speel je?</summary>
+        <ul>
+            <li>Deze pagina laadt de <b>Unity WebGL</b>-versie van Race Circuit.</li>
+            <li>Gebruik in Unity dezelfde regels: <b>4 banen</b>, <b>4 karts</b>, en lege plekken laten opvullen door de computer.</li>
+            <li>Als je nog geen Unity build-bestanden hebt gekopieerd, zie de README in <code>RaceCircuit/wwwroot/unity/racecircuit</code>.</li>
+            <li>Werkt het niet in deze pagina? Gebruik de knop <b>Open los</b>.</li>
+        </ul>
+    </details>
 </div>
-
-@code {
-    private ElementReference _canvas;
-    private IJSObjectReference? _js;
-    private DotNetObjectReference<RaceCircuitPage>? _self;
-    private int _humanPlayers = 1;
-    private string _status = "Klaar voor de start";
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (!firstRender) return;
-        try
-        {
-            _js = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/RaceCircuit/racecircuit.js");
-            _self = DotNetObjectReference.Create(this);
-            await _js.InvokeVoidAsync("init", _canvas, _self);
-            await _js.InvokeVoidAsync("startRace", _humanPlayers);
-        }
-        catch (Exception ex) when (ex is JSException or JSDisconnectedException or TaskCanceledException)
-        {
-            _status = $"Starten mislukt: {ex.Message}";
-            StateHasChanged();
-        }
-    }
-
-    private async Task OnPlayerCountChanged()
-    {
-        if (_js is null) return;
-        await _js.InvokeVoidAsync("startRace", _humanPlayers);
-    }
-
-    private async Task Restart()
-    {
-        if (_js is null) return;
-        await _js.InvokeVoidAsync("startRace", _humanPlayers);
-    }
-
-    [JSInvokable]
-    public Task SetStatus(string status)
-    {
-        _status = status;
-        StateHasChanged();
-        return Task.CompletedTask;
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        try
-        {
-            if (_js is not null)
-            {
-                await _js.InvokeVoidAsync("dispose");
-                await _js.DisposeAsync();
-            }
-        }
-        catch (JSDisconnectedException)
-        {
-        }
-        _self?.Dispose();
-    }
-}

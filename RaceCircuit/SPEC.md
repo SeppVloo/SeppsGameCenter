@@ -1,41 +1,31 @@
 # RaceCircuit – Specificatie
 
 ## Overzicht
-- Nieuwe racegame op route `/race-circuit` in Sepps GameCenter.
-- Volledig scherm met een camera die je eigen kart volgt (vooruitzicht op de baan).
-- Altijd 4 banen en 4 karts.
-- Echte spelers: instelbaar 1 t/m 4 op hetzelfde apparaat.
-- Niet-gevulde plekken worden automatisch bestuurd door de computer.
+- Route: `/race-circuit` in Sepps GameCenter.
+- De pagina host nu een **Unity WebGL** build in een fullscreen iframe.
+- Oude custom canvas-implementatie is verwijderd.
 
-## Gameplay
-- Elke kart rijdt 3 rondes.
-- Hoogste positie bepaalt de tussenstand; eerste over de finish wint.
-- Menselijke spelers kunnen van baan wisselen en gas/remmen.
-- Computerkarts rijden automatisch en zoeken agressief naar vrije banen.
-- Arcadestijl: hogere topsnelheid, snellere stuurreactie en meer druk in gevechten om positie.
-- Verkeer (oranje obstakels) rijdt over het circuit; botsen kost snelheid en duwt je opzij.
-- Blauwe boost pads geven kort extra snelheid.
-- Kart-tegen-kart contact geeft lichte duw/instabiliteit in plaats van directe uitschakeling.
-
-## Besturing
-- Speler 1: W/A/S/D
-- Speler 2: pijltjestoetsen
-- Speler 3: I/J/K/L
-- Speler 4: T/F/G/H
+## Gameplay-doel (Unity build)
+- Racegame met 4 banen en 4 karts.
+- Echte spelers vullen beschikbare plekken; overige karts worden door AI bestuurd.
+- Camera mag op de eigen kart focussen (niet het hele circuit tegelijk in beeld).
 
 ## UI
-- Overlay met terugknop, speler-keuze en knop "Nieuwe race".
-- HUD met tijd, ronde, positie, snelheid en minimap.
-- Statusbalk met live tussenstand.
-- Inklapbare hulp: **❓ Hoe speel je?**
+- Topbar met terugknop en "Open los" link naar de Unity hostpagina.
+- Inklapbare hulp: **❓ Hoe speel je?** met uitleg over Unity build-bestanden.
+- Fallbackmelding als de Unity build nog niet aanwezig is.
 
 ## Architectuur
 - Razor Class Library `RaceCircuit`.
-- `Pages/RaceCircuitPage.razor`: UI + JS-interop.
-- `wwwroot/racecircuit.js`: game-loop, input, AI, render op canvas.
-- `wwwroot/racecircuit.css`: full-screen layout en overlay-styling.
+- `Pages/RaceCircuitPage.razor`: hostpagina met iframe naar `_content/RaceCircuit/unity/racecircuit/index.html`.
+- `wwwroot/racecircuit.css`: fullscreen hostlayout + help-paneel.
+- `wwwroot/unity/racecircuit/index.html`: Unity bootstrap/fallback.
+- `wwwroot/unity/racecircuit/README.md`: instructies om Unity WebGL build-bestanden te plaatsen.
+
+## Buildbestanden (Unity)
+Plaats output van Unity WebGL build in:
+- `RaceCircuit/wwwroot/unity/racecircuit/Build/`
+- `RaceCircuit/wwwroot/unity/racecircuit/StreamingAssets/` (indien gebruikt)
 
 ## Changelog
-- **Basis toegevoegd:** nieuw project RaceCircuit met full-screen top-down circuit, 4 banen, 4 karts, lokale spelersselectie en AI-opvulling, plus in-game helptekst.
-- **Arcade update:** rijgedrag sneller en directer gemaakt, AI agressiever, verkeer-obstakels en boost pads toegevoegd, en contact-effecten tussen voertuigen toegevoegd.
-- **Visual rework:** rendering omgezet naar follow-camera op de eigen kart met perspectiefweg, betere kart-tekening, rijkere omgeving en HUD/minimap.
+- **Unity migratie:** RaceCircuit omgezet van custom canvas-game naar Unity WebGL host; oude JS-rendering verwijderd; fallback en build-instructies toegevoegd.
