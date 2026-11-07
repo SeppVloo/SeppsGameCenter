@@ -8,6 +8,7 @@
   <Project Path="PongWeb/PongWeb.csproj" />
   <Project Path="PongWinForms/PongWinForms.csproj" />
   <Project Path="Race/Race.csproj" />
+  <Project Path="RaceCircuit/RaceCircuit.csproj" />
   <Project Path="Sepp2048Web/Sepp2048Web.csproj" />
   <Project Path="SeppConsoleApp/SeppConsoleApp.csproj" />
   <Project Path="SeppWinFormsApp/SeppWinFormsApp.csproj" />

@@ -18,6 +18,7 @@
     <ProjectReference Include="..\Game2048\Game2048.csproj" />
     <ProjectReference Include="..\UltimateTtt\UltimateTtt.csproj" />
     <ProjectReference Include="..\Race\Race.csproj" />
+    <ProjectReference Include="..\RaceCircuit\RaceCircuit.csproj" />
   </ItemGroup>
 
 </Project>
