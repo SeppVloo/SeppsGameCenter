@@ -2,7 +2,7 @@
 
 ## Overzicht
 - Nieuwe racegame op route `/race-circuit` in Sepps GameCenter.
-- Volledig scherm met bovenaanzicht van een circuit.
+- Volledig scherm met een camera die je eigen kart volgt (vooruitzicht op de baan).
 - Altijd 4 banen en 4 karts.
 - Echte spelers: instelbaar 1 t/m 4 op hetzelfde apparaat.
 - Niet-gevulde plekken worden automatisch bestuurd door de computer.
@@ -25,6 +25,7 @@
 
 ## UI
 - Overlay met terugknop, speler-keuze en knop "Nieuwe race".
+- HUD met tijd, ronde, positie, snelheid en minimap.
 - Statusbalk met live tussenstand.
 - Inklapbare hulp: **❓ Hoe speel je?**
 
@@ -37,3 +38,4 @@
 ## Changelog
 - **Basis toegevoegd:** nieuw project RaceCircuit met full-screen top-down circuit, 4 banen, 4 karts, lokale spelersselectie en AI-opvulling, plus in-game helptekst.
 - **Arcade update:** rijgedrag sneller en directer gemaakt, AI agressiever, verkeer-obstakels en boost pads toegevoegd, en contact-effecten tussen voertuigen toegevoegd.
+- **Visual rework:** rendering omgezet naar follow-camera op de eigen kart met perspectiefweg, betere kart-tekening, rijkere omgeving en HUD/minimap.

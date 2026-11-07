@@ -135,3 +135,4 @@ drone-show met afwisseling.
 - GameCenter: nieuw spel 🏎️ Race toegevoegd (route `/race`, Razor Class Library `Race`, zie `Race/SPEC.md`); vervangt de "Nieuw spel"-placeholder.
 - GameCenter: nieuw spel 🏁 Race Circuit toegevoegd (route `/race-circuit`, Razor Class Library `RaceCircuit`, zie `RaceCircuit/SPEC.md`) met full-screen bovenaanzicht, 4 banen, 4 karts en AI-opvulling voor lege spelersplekken.
 - Race Circuit: gameplay aangepast naar snellere arcade-stijl met agressievere AI, verkeer-obstakels, boost pads en contact-duw tussen voertuigen.
+- Race Circuit: visuals herwerkt naar follow-camera op de eigen kart met perspectiefweg, rijkere baanomgeving en HUD/minimap.
